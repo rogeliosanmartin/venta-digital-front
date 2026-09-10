@@ -1,6 +1,6 @@
 import { jsPDF } from 'jspdf';
 import { saleCompanyLetter } from '../constants/sale-companies';
-import { fullName, hasIneDocumentos, type SaleFormData } from '../types/sale-form';
+import { fullName, hasIneDocumentos, realContrato, type SaleFormData } from '../types/sale-form';
 import { formatMoneyDisplay, normalizeFrequency } from './sale-finance';
 
 const PAGE_W = 612;
@@ -220,7 +220,7 @@ function drawLetter(
   const p = form.pago;
   const company = saleCompanyLetter(form.ubicacionPlan.planKind);
   const contrato =
-    v(form.meta.contrato) ||
+    realContrato(form.meta.contrato) ||
     v(form.meta.folioSolicitud) ||
     (opts?.saleId ? String(opts.saleId) : '');
   const fecha = formatLongDate(form.meta.fecha);

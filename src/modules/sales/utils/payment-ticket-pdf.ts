@@ -1,5 +1,5 @@
 import { jsPDF } from 'jspdf';
-import { fullName, type SaleFormData } from '../types/sale-form';
+import { formatDigitalFolio, fullName, type SaleFormData } from '../types/sale-form';
 import {
   paymentDueAmount,
   paymentDueConcepts,
@@ -109,7 +109,8 @@ export async function buildPaymentTicketPdf(
   const c = form.contacto;
   const cliente = fullName(c) || '—';
   const celular = v(c.celular1) || v(c.celular2) || '—';
-  const folio = form.meta.folioSolicitud || String(opts.saleId);
+  const folio =
+    formatDigitalFolio(form.meta.folioSolicitud || opts.saleId);
   const asesor = v(p.nombreAsesor) || v(opts.sellerName) || '—';
   const now = new Date();
   const emitted = `${String(now.getDate()).padStart(2, '0')}/${String(

@@ -1,5 +1,6 @@
 import {
   createEmptySaleForm,
+  DEFAULT_SERVICIO_FUNERARIO,
   mergeSaleForm,
   type SaleAttachment,
   type SaleFormData,
@@ -50,7 +51,7 @@ type ParkLocationMock = {
   numero: string;
 };
 
-/** Plan parque: sin servicio funerario; ubicación solo si hay preasignación. */
+/** Plan parque: sin servicio funerario. Parque/sección siempre; espacio solo si hay preasignación. */
 function mockPlanParque(opts: {
   nombrePlan: string;
   productId: number;
@@ -60,7 +61,7 @@ function mockPlanParque(opts: {
   park?: ParkLocationMock;
 }): Partial<SaleFormData['ubicacionPlan']> {
   const preasignacion = opts.preasignacion ?? false;
-  const park = preasignacion ? opts.park : undefined;
+  const park = opts.park;
   return {
     planKind: 'PARQUE',
     nombrePlan: opts.nombrePlan,
@@ -71,22 +72,22 @@ function mockPlanParque(opts: {
     preasignacion,
     parqueFuneral: park?.parqueFuneral ?? '',
     seccion: park?.seccion ?? '',
-    cuadrante: park?.cuadrante ?? '',
-    numero: park?.numero ?? '',
+    cuadrante: preasignacion ? (park?.cuadrante ?? '') : '',
+    numero: preasignacion ? (park?.numero ?? '') : '',
     parkId: park?.parkId ?? null,
     sectionId: park?.sectionId ?? null,
-    quadrantId: park?.quadrantId ?? null,
-    spaceId: park?.spaceId ?? null,
+    quadrantId: preasignacion ? (park?.quadrantId ?? null) : null,
+    spaceId: preasignacion ? (park?.spaceId ?? null) : null,
   };
 }
 
-/** Plan a futuro: servicio funerario obligatorio; sin datos de parque. */
+/** Plan a futuro: mismo default de captura; sin datos de parque. */
 function mockPlanFuturo(opts: {
   nombrePlan: string;
   productId: number;
   productDefaultCode: string;
   precioPlan: string;
-  servicioFunerario: string;
+  servicioFunerario?: string;
 }): Partial<SaleFormData['ubicacionPlan']> {
   return {
     planKind: 'PLAN_FUTURO',
@@ -94,7 +95,7 @@ function mockPlanFuturo(opts: {
     productId: opts.productId,
     productDefaultCode: opts.productDefaultCode,
     precioPlan: opts.precioPlan,
-    servicioFunerario: opts.servicioFunerario,
+    servicioFunerario: DEFAULT_SERVICIO_FUNERARIO,
     preasignacion: false,
     parqueFuneral: '',
     seccion: '',
@@ -125,12 +126,8 @@ function normalizeUbicacionPlan(
 
   plan.servicioFunerario = '';
   if (!plan.preasignacion) {
-    plan.parqueFuneral = '';
-    plan.seccion = '';
     plan.cuadrante = '';
     plan.numero = '';
-    plan.parkId = null;
-    plan.sectionId = null;
     plan.quadrantId = null;
     plan.spaceId = null;
   }
@@ -167,6 +164,41 @@ function fullNameOf(c: Partial<SaleFormData['contacto']>): string {
     .map((p) => String(p ?? '').trim())
     .filter(Boolean)
     .join(' ');
+}
+
+function seedIsNomina(seed: DevSaleSeed): boolean {
+  return seed.contacto.tipoCobranza === 'NOMINA';
+}
+
+function seedIsUas(seed: DevSaleSeed): boolean {
+  if (Number(seed.pago?.empresaNominaId) === 1) return true;
+  return (
+    String(seed.pago?.empresaNomina ?? '')
+      .trim()
+      .toLocaleUpperCase('es-MX') === 'UAS'
+  );
+}
+
+function seedNeedsCard(seed: DevSaleSeed): boolean {
+  return seed.contacto.tipoCobranza === 'DOMICILIADO' || seedIsUas(seed);
+}
+
+/** Completa campos que la captura exige según tipo de cobranza. */
+function applyMockPagoRules(
+  contacto: Partial<SaleFormData['contacto']>,
+  pago: SaleFormData['pago'],
+): SaleFormData['pago'] {
+  if (!pago.diasEspecificosPago.trim()) {
+    pago.diasEspecificosPago = '15 de cada mes';
+  }
+  if (contacto.tipoCobranza === 'DOMICILIADO') {
+    if (!pago.cvv.trim()) pago.cvv = '847';
+    if (!pago.titularTarjeta.trim()) pago.titularTarjeta = fullNameOf(contacto);
+  }
+  if (contacto.tipoCobranza === 'NOMINA') {
+    if (!pago.nombreEmpleado.trim()) pago.nombreEmpleado = fullNameOf(contacto);
+  }
+  return pago;
 }
 
 /** RFC de prueba (13 física / 12 moral) a partir de CURP o fallback. */
@@ -257,10 +289,10 @@ const SEEDS: DevSaleSeed[] = [
       nombres: 'José Luis',
       celular: '6675551212',
       parentesco: 'Esposo',
-      direccion: 'Calle Hidalgo 245',
-      colonia: 'Centro',
-      cp: '80000',
-      entreCalles: 'Juárez y Morelos',
+      direccion: 'Av. Álvaro Obregón 18',
+      colonia: 'Guadalupe',
+      cp: '80200',
+      entreCalles: 'Reforma y Independencia',
       fechaNacimiento: '1982-07-22',
     },
     titularSustituto: {
@@ -468,6 +500,16 @@ const SEEDS: DevSaleSeed[] = [
       productDefaultCode: 'JARD-003',
       precioPlan: '52000',
       preasignacion: false,
+      park: {
+        parkId: 102,
+        parqueFuneral: 'Parque San Martín Culiacán',
+        sectionId: 210,
+        seccion: 'B',
+        quadrantId: 0,
+        cuadrante: '',
+        spaceId: 0,
+        numero: '',
+      },
     }),
     pago: {
       precioPlan: '52000',
@@ -488,7 +530,7 @@ const SEEDS: DevSaleSeed[] = [
     declaraciones: { aceptaMercadotecnia: 'NO', aceptaPublicidad: 'NO' },
   },
   {
-    label: 'Xavier Ramírez · Plan futuro',
+    label: 'Xavier Ramírez · Nómina',
     meta: {
       fecha: todayIso(),
       contrato: '',
@@ -508,7 +550,7 @@ const SEEDS: DevSaleSeed[] = [
       cp: '80030',
       municipio: 'Culiacán',
       estado: 'Sinaloa',
-      tipoCobranza: 'VENTANILLA',
+      tipoCobranza: 'NOMINA',
       sindicalizado: 'NO',
       celular1: '6679988776',
       correo: 'sistemas@sanmartin.com.mx',
@@ -560,6 +602,11 @@ const SEEDS: DevSaleSeed[] = [
       formaPago: 'CHEQUE',
       banco: 'Santander',
       cuenta: '5566778899',
+      nombreEmpleado: 'Xavier Ramírez Xol',
+      numeroEmpleado: '48291',
+      empresaNomina: 'COBAES',
+      empresaNominaId: 12,
+      infoNomina: 'Quincenal',
       nombreJefeVentas: 'Carlos Mendoza',
     },
     declaraciones: { aceptaMercadotecnia: 'SI', aceptaPublicidad: 'NO' },
@@ -993,7 +1040,7 @@ const SEEDS: DevSaleSeed[] = [
     declaraciones: { aceptaMercadotecnia: 'SI', aceptaPublicidad: 'NO' },
   },
   {
-    label: 'Luis Nolasco · Plan futuro',
+    label: 'Luis Nolasco · Nómina UAS',
     meta: {
       fecha: todayIso(),
       contrato: '',
@@ -1013,7 +1060,7 @@ const SEEDS: DevSaleSeed[] = [
       cp: '80140',
       municipio: 'Culiacán',
       estado: 'Sinaloa',
-      tipoCobranza: 'VENTANILLA',
+      tipoCobranza: 'NOMINA',
       sindicalizado: 'SI',
       celular1: '6679090807',
       correo: 'sistemas@sanmartin.com.mx',
@@ -1065,6 +1112,11 @@ const SEEDS: DevSaleSeed[] = [
       formaPago: 'TRANSFERENCIA',
       banco: 'BBVA',
       cuenta: '4455667788',
+      nombreEmpleado: 'Luis Miguel Nolasco Gil',
+      numeroEmpleado: 'UAS-18402',
+      empresaNomina: 'UAS',
+      empresaNominaId: 1,
+      infoNomina: 'Quincenal',
       nombreJefeVentas: 'Carlos Mendoza',
     },
     declaraciones: { aceptaMercadotecnia: 'NO', aceptaPublicidad: 'SI' },
@@ -1090,7 +1142,10 @@ function buildFromSeed(seed: DevSaleSeed): SaleFormData {
       ...createEmptySaleForm().ubicacionPlan,
       ...seed.ubicacionPlan,
     }),
-    pago: { ...createEmptySaleForm().pago, ...seed.pago },
+    pago: applyMockPagoRules(seed.contacto, {
+      ...createEmptySaleForm().pago,
+      ...seed.pago,
+    }),
     declaraciones: seed.declaraciones,
     documentos: {
       ineFrente: mockDoc('ine-frente-mock.png'),
@@ -1101,23 +1156,30 @@ function buildFromSeed(seed: DevSaleSeed): SaleFormData {
         seed.contacto.factura === 'SI' || seed.factura
           ? mockPdf('constancia-mock.pdf')
           : null,
-      tarjetaFrente:
-        seed.contacto.tipoCobranza === 'DOMICILIADO'
-          ? mockDoc('tarjeta-frente-mock.png')
-          : null,
-      tarjetaReverso:
-        seed.contacto.tipoCobranza === 'DOMICILIADO'
-          ? mockDoc('tarjeta-reverso-mock.png')
-          : null,
+      tarjetaFrente: seedNeedsCard(seed)
+        ? mockDoc('tarjeta-frente-mock.png')
+        : null,
+      tarjetaReverso: seedNeedsCard(seed)
+        ? mockDoc('tarjeta-reverso-mock.png')
+        : null,
       tarjetaPdf: null,
+      reciboNomina: seedIsNomina(seed)
+        ? mockDoc('recibo-nomina-mock.png')
+        : null,
+      domiciliacionBanorte: seedIsUas(seed)
+        ? mockPdf('domiciliacion-banorte-mock.pdf')
+        : null,
       firmaCliente: null,
       ticketPago: null,
       comprobanteTransferencia: null,
       caratulaPdf: null,
       cartaFacturaPdf: null,
       cartaNoFacturaPdf: null,
+      cartaExclusionesPdf: null,
       reglamentoParquePdf: null,
+      reglamentoParqueFolletoPdf: null,
       cartaAutorizacionPdf: null,
+      cartaNominaPdf: null,
     },
   });
   return form;

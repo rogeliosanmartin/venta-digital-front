@@ -9,14 +9,19 @@ export type AttachmentKind =
   | 'tarjetaFrente'
   | 'tarjetaReverso'
   | 'tarjetaPdf'
+  | 'reciboNomina'
+  | 'domiciliacionBanorte'
   | 'ticketPago'
   | 'comprobanteTransferencia'
   | 'firmaCliente'
   | 'caratulaPdf'
   | 'cartaFacturaPdf'
   | 'cartaNoFacturaPdf'
+  | 'cartaExclusionesPdf'
   | 'reglamentoParquePdf'
-  | 'cartaAutorizacionPdf';
+  | 'reglamentoParqueFolletoPdf'
+  | 'cartaAutorizacionPdf'
+  | 'cartaNominaPdf';
 
 export type AttachmentListItem = {
   kind: AttachmentKind;
@@ -33,14 +38,19 @@ const LABELS: Record<AttachmentKind, string> = {
   tarjetaFrente: 'Tarjeta (frente)',
   tarjetaReverso: 'Tarjeta (reverso)',
   tarjetaPdf: 'Tarjeta (ambos lados)',
+  reciboNomina: 'Recibo de nómina más actual',
+  domiciliacionBanorte: 'Documento de domiciliación Banorte',
   ticketPago: 'Ticket de pago',
   comprobanteTransferencia: 'Comprobante de transferencia',
   firmaCliente: 'Firma del cliente',
   caratulaPdf: 'Carátula del contrato',
   cartaFacturaPdf: 'Carta de requerimiento de factura',
   cartaNoFacturaPdf: 'Consentimiento de no factura',
+  cartaExclusionesPdf: 'Carta de aceptación de exclusiones',
   reglamentoParquePdf: 'Reglamento de parque',
+  reglamentoParqueFolletoPdf: 'Reglamento de parque (artículos)',
   cartaAutorizacionPdf: 'Carta de autorización (cargo automático)',
+  cartaNominaPdf: 'Carta de consentimiento (nómina)',
 };
 
 export function isAllowedUploadFile(file: File): boolean {
@@ -80,10 +90,15 @@ export function listSaleAttachments(form: SaleFormData): AttachmentListItem[] {
     'caratulaPdf',
     'cartaFacturaPdf',
     'cartaNoFacturaPdf',
+    'cartaExclusionesPdf',
     'reglamentoParquePdf',
+    'reglamentoParqueFolletoPdf',
     'cartaAutorizacionPdf',
+    'cartaNominaPdf',
     'inePdf',
     'tarjetaPdf',
+    'reciboNomina',
+    'domiciliacionBanorte',
     'comprobanteDomicilio',
     'constanciaSituacionFiscal',
     'ineFrente',

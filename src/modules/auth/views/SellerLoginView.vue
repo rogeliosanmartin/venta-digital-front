@@ -7,6 +7,7 @@ const auth = useAuthStore();
 const router = useRouter();
 const route = useRoute();
 
+const isDev = import.meta.env.DEV;
 const step = ref<'phone' | 'pin'>('phone');
 const cellphone = ref('');
 const nipId = ref<number | null>(null);
@@ -18,6 +19,16 @@ async function requestPin() {
   localError.value = null;
   if (!/^\d{10}$/.test(cellphone.value)) {
     localError.value = 'Ingresa un celular de 10 dígitos';
+    return;
+  }
+
+  if (isDev) {
+    try {
+      await auth.loginSellerDev(cellphone.value);
+      router.replace({ name: 'vendedor-ventas' });
+    } catch {
+      localError.value = auth.error;
+    }
     return;
   }
 
@@ -61,7 +72,13 @@ async function verifyPin() {
       <div class="brand-copy">
         <img src="/icons-palomasanmartin.svg" alt="" class="dove" />
         <h1>Venta Digital</h1>
-        <p>Acceso de vendedor con PIN de WhatsApp</p>
+        <p>
+          {{
+            isDev
+              ? 'Acceso de vendedor (desarrollo: solo celular)'
+              : 'Acceso de vendedor con PIN de WhatsApp'
+          }}
+        </p>
       </div>
       <small>Grupo San Martín</small>
     </header>
@@ -76,7 +93,9 @@ async function verifyPin() {
         <p class="subtitle">
           {{
             step === 'phone'
-              ? 'Te enviaremos un PIN por WhatsApp'
+              ? isDev
+                ? 'En desarrollo entra solo con el celular registrado'
+                : 'Te enviaremos un PIN por WhatsApp'
               : `PIN enviado a ${cellphone}`
           }}
         </p>
@@ -117,7 +136,15 @@ async function verifyPin() {
         <button class="btn btn-primary submit" type="submit" :disabled="auth.loading">
           <span v-if="auth.loading" class="spinner" />
           <template v-if="step === 'phone'">
-            {{ auth.loading ? 'Enviando…' : 'Enviar PIN' }}
+            {{
+              auth.loading
+                ? isDev
+                  ? 'Entrando…'
+                  : 'Enviando…'
+                : isDev
+                  ? 'Entrar'
+                  : 'Enviar PIN'
+            }}
           </template>
           <template v-else>
             {{ auth.loading ? 'Validando…' : 'Entrar' }}

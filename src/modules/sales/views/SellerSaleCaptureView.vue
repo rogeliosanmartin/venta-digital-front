@@ -4,7 +4,9 @@ import { useRoute, useRouter } from 'vue-router';
 import { extractApiError, http } from '../../../shared/api/http';
 import { useDialog } from '../../../shared/ui/dialog';
 import VdModal from '../../../shared/ui/modal/VdModal.vue';
-import VdSelect from '../../../shared/ui/select/VdSelect.vue';
+import VdSelect, {
+  type VdSelectOption,
+} from '../../../shared/ui/select/VdSelect.vue';
 import SalePdfPreviewModal from '../components/SalePdfPreviewModal.vue';
 import SalePlanSearchModal, {
   type PlanProduct,
@@ -49,6 +51,7 @@ import {
   createEmptySaleForm,
   DEFAULT_SERVICIO_FUNERARIO,
   emptyBeneficiary,
+  formatDigitalFolio,
   mergeSaleForm,
   hasIneDocumentos,
   normalizePagoDefaults,
@@ -60,7 +63,13 @@ import {
   type SaleListItem,
   type SaleStatus,
 } from '../types/sale-form';
+import { isUasConvenio } from '../utils/convenio-letter';
 import { CURP_OFFICIAL_URL, isValidCurp } from '../utils/curp';
+import {
+  sameContactAddress,
+  sameContactName,
+  titularSegundoDuplicateMessages,
+} from '../utils/contact-duplicate';
 import {
   isEmptyOrValidMxPhone,
   isValidMxPhone,
@@ -79,6 +88,7 @@ import {
 } from '../utils/odoo-clientes';
 import { takePendingRecognition } from '../utils/pending-recognition';
 import {
+  patchSellerPrefetch,
   prefetchSellerSession,
   readSellerPrefetch,
 } from '../utils/seller-session-cache';
@@ -129,6 +139,9 @@ const STEPS = [
   { key: 'docs', title: 'Documentos', short: 'Docs' },
 ] as const;
 
+/** Mientras sea true, el tipo de servicio queda en Ventas a futuro y no se edita. */
+const SERVICE_TYPE_LOCKED = true;
+
 const DEV_PREFILL_EXTRAS = [
   { key: 'factura', title: 'Datos de factura', short: 'Factura' },
 ] as const;
@@ -152,8 +165,11 @@ const loading = ref(false);
 const previewOpen = ref(false);
 const cartaPreviewOpen = ref(false);
 const cartaNoFacturaPreviewOpen = ref(false);
+const cartaExclusionesPreviewOpen = ref(false);
 const reglamentoParquePreviewOpen = ref(false);
+const reglamentoParqueFolletoPreviewOpen = ref(false);
 const cartaAuthPreviewOpen = ref(false);
+const cartaNominaPreviewOpen = ref(false);
 const tarjetaPreviewOpen = ref(false);
 const inePreviewOpen = ref(false);
 const reuseOpen = ref(false);
@@ -280,11 +296,66 @@ const tipoCobranzaNorm = computed(() =>
 );
 const isDomiciliado = computed(() => tipoCobranzaNorm.value === 'DOMICILIADO');
 const isNomina = computed(() => tipoCobranzaNorm.value === 'NOMINA');
+const isUasNomina = computed(() => isNomina.value && isUasConvenio(form));
+const needsCardSides = computed(
+  () => isDomiciliado.value || isUasNomina.value,
+);
 const tipoCobranzaOptions = computed(() => TIPO_COBRANZA_OPTIONS);
 const empresasConvenio = ref<Array<{ id: number; name: string }>>([]);
+const parentescos = ref<SaleBranch[]>([]);
 const empresaNominaOptions = computed(() =>
   empresasConvenio.value.map((e) => ({ value: e.id, label: e.name })),
 );
+const DEFAULT_PARENTESCO_NAMES = [
+  'Esposo (A)',
+  'Familiar',
+  'Amistad',
+  'Hermano (A)',
+  'Padre',
+  'Madre',
+  'Hijo (A)',
+];
+
+const parentescoOptions = computed<VdSelectOption[]>(() =>
+  parentescos.value.map((row) => ({ value: row.id, label: row.name })),
+);
+
+const parentescoDefaultOptions = computed<VdSelectOption[]>(() => {
+  const byName = new Map(
+    parentescos.value.map((row) => [row.name.trim().toLowerCase(), row]),
+  );
+  const opts: VdSelectOption[] = [];
+  for (const name of DEFAULT_PARENTESCO_NAMES) {
+    const row = byName.get(name.toLowerCase());
+    if (!row) continue;
+    opts.push({ value: row.id, label: row.name });
+  }
+  return opts;
+});
+
+function relationSelectValue(person: {
+  relationId?: number | null;
+  parentesco?: string;
+}): number | null {
+  if (person.relationId && person.relationId > 0) return person.relationId;
+  const name = (person.parentesco || '').trim().toLowerCase();
+  if (!name) return null;
+  return (
+    parentescos.value.find((row) => row.name.trim().toLowerCase() === name)
+      ?.id ?? null
+  );
+}
+
+function onRelationChange(
+  person: { relationId: number | null; parentesco: string },
+  raw: string | number | null,
+) {
+  const id = raw == null || raw === '' ? null : Number(raw);
+  person.relationId =
+    id != null && Number.isFinite(id) && id > 0 ? id : null;
+  person.parentesco =
+    parentescos.value.find((row) => row.id === person.relationId)?.name ?? '';
+}
 const empresasConvenioLoaded = ref(false);
 const showMetodoBanco = computed(() => isDomiciliado.value);
 const metodoBancoChoice = ref('');
@@ -386,6 +457,9 @@ function onEmpresaNominaChange(raw: string | number | null = form.pago.empresaNo
     (e) => e.id === form.pago.empresaNominaId,
   );
   form.pago.empresaNomina = toSaleUppercase(selected?.name ?? '');
+  if (!isUasConvenio(form)) {
+    form.documentos.domiciliacionBanorte = null;
+  }
 }
 
 async function loadEmpresasConvenio() {
@@ -432,6 +506,17 @@ function applyDefaultBranch() {
   );
 }
 
+function applyDefaultServiceType() {
+  const match = serviceTypes.value.find(
+    (t) =>
+      t.name.trim().toLocaleLowerCase('es-MX') === 'ventas a futuro',
+  );
+  if (!match) return;
+  if (!SERVICE_TYPE_LOCKED && form.meta.serviceTypeId) return;
+  form.meta.serviceTypeId = match.id;
+  form.meta.serviceTypeName = toSaleUppercase(match.name);
+}
+
 function onBranchChange() {
   const selected = branches.value.find((b) => b.id === form.meta.branchId);
   form.meta.branchName = toSaleUppercase(selected?.name ?? '');
@@ -449,13 +534,16 @@ function applySellerPrefetch(data: {
   branches: SaleBranch[];
   serviceTypes: SaleBranch[];
   convenioCompanies?: SaleBranch[];
+  parentescos?: SaleBranch[];
 }) {
   branches.value = data.branches;
   serviceTypes.value = data.serviceTypes;
   empresasConvenio.value = data.convenioCompanies ?? [];
   empresasConvenioLoaded.value = true;
+  parentescos.value = data.parentescos ?? [];
   sellerDefaults.value = { ...emptySellerDefaults(), ...data.defaults };
   if (!saleId.value) applyDefaultBranch();
+  applyDefaultServiceType();
 }
 
 async function loadSellerDefaults() {
@@ -470,7 +558,19 @@ async function loadSellerDefaults() {
       branches.value = [];
       serviceTypes.value = [];
       empresasConvenio.value = [];
+      parentescos.value = [];
       empresasConvenioLoaded.value = true;
+    }
+  }
+  if (!parentescos.value.length) {
+    try {
+      const { data } = await http.get<SaleBranch[]>('/odoo/parentescos', {
+        skipGlobalLoading: true,
+      });
+      parentescos.value = Array.isArray(data) ? data : [];
+      patchSellerPrefetch({ userId, parentescos: parentescos.value });
+    } catch {
+      parentescos.value = [];
     }
   }
 }
@@ -483,6 +583,14 @@ function clearParkLocation() {
   plan.numero = '';
   plan.parkId = null;
   plan.sectionId = null;
+  plan.quadrantId = null;
+  plan.spaceId = null;
+}
+
+function clearParkSpaceOnly() {
+  const plan = form.ubicacionPlan;
+  plan.cuadrante = '';
+  plan.numero = '';
   plan.quadrantId = null;
   plan.spaceId = null;
 }
@@ -518,7 +626,7 @@ function openPlanMetodoPagoTab() {
 }
 
 function onPreasignacionChange() {
-  if (!form.ubicacionPlan.preasignacion) clearParkLocation();
+  if (!form.ubicacionPlan.preasignacion) clearParkSpaceOnly();
 }
 
 async function syncWithoutInterestFromPlan() {
@@ -626,11 +734,10 @@ watch(
       form.pago.empresaNomina = '';
       form.pago.empresaNominaId = null;
       form.pago.infoNomina = '';
+      form.documentos.reciboNomina = null;
+      form.documentos.domiciliacionBanorte = null;
       return;
     }
-    form.documentos.tarjetaFrente = null;
-    form.documentos.tarjetaReverso = null;
-    form.documentos.tarjetaPdf = null;
     form.pago.cuenta = '';
     form.pago.cvv = '';
     form.pago.vencimientoTarjeta = '';
@@ -643,6 +750,11 @@ watch(
       prefillNombreEmpleado();
       return;
     }
+    form.documentos.tarjetaFrente = null;
+    form.documentos.tarjetaReverso = null;
+    form.documentos.tarjetaPdf = null;
+    form.documentos.reciboNomina = null;
+    form.documentos.domiciliacionBanorte = null;
     form.pago.numeroEmpleado = '';
     form.pago.nombreEmpleado = '';
     form.pago.empresaNomina = '';
@@ -830,10 +942,10 @@ function onLocationSelected(loc: ParkLocationSelection) {
   dest.parqueFuneral = toSaleUppercase(loc.parkName);
   dest.sectionId = loc.sectionId;
   dest.seccion = toSaleUppercase(loc.sectionName);
-  dest.quadrantId = loc.quadrantId;
-  dest.cuadrante = toSaleUppercase(loc.quadrantName);
-  dest.spaceId = loc.spaceId;
-  dest.numero = toSaleUppercase(loc.spaceName);
+  dest.quadrantId = loc.quadrantId ?? null;
+  dest.cuadrante = toSaleUppercase(loc.quadrantName ?? '');
+  dest.spaceId = loc.spaceId ?? null;
+  dest.numero = toSaleUppercase(loc.spaceName ?? '');
   locationSearchOpen.value = false;
 }
 
@@ -856,6 +968,25 @@ function personHasName(p?: {
 
 function firstBeneficiaryHasName(): boolean {
   return personHasName(form.beneficiarios[0]);
+}
+
+const segundoNombreDuplicado = computed(() =>
+  sameContactName(form.contacto, form.segundoContacto),
+);
+const segundoDomicilioDuplicado = computed(() =>
+  sameContactAddress(form.contacto, form.segundoContacto),
+);
+
+function parkLocationMissing(plan: SaleFormData['ubicacionPlan']): string[] {
+  if (plan.planKind !== 'PARQUE') return [];
+  const missing: string[] = [];
+  if (!plan.parkId) missing.push('Parque');
+  if (!plan.sectionId) missing.push('Sección');
+  if (plan.preasignacion) {
+    if (!plan.quadrantId) missing.push('Cuadrante');
+    if (!plan.spaceId) missing.push('Ubicación');
+  }
+  return missing;
 }
 
 function anyText(...vals: Array<string | null | undefined>) {
@@ -931,6 +1062,8 @@ const stepHasData = computed<Record<StepKey, boolean>>(() => {
       Boolean(docs.tarjetaFrente) ||
       Boolean(docs.tarjetaReverso) ||
       Boolean(docs.tarjetaPdf) ||
+      Boolean(docs.reciboNomina) ||
+      Boolean(docs.domiciliacionBanorte) ||
       anyText(decl.aceptaMercadotecnia, decl.aceptaPublicidad),
   };
 });
@@ -941,21 +1074,15 @@ const stepComplete = computed<Record<StepKey, boolean>>(() => {
   const sc = form.segundoContacto;
   const plan = form.ubicacionPlan;
   const pago = form.pago;
-  const parkOk =
-    plan.planKind !== 'PARQUE' ||
-    !plan.preasignacion ||
-    Boolean(
-      plan.parkId &&
-        plan.sectionId &&
-        plan.quadrantId &&
-        plan.spaceId,
-    );
+  const parkMissing = parkLocationMissing(plan);
+  const parkOk = parkMissing.length === 0;
   const precioOk = parseMoney(plan.precioPlan || pago.precioPlan) > 0;
   const contado = normalizeFrequency(pago.frecuencia) === 'CONTADO';
   const finOk =
     hasText(pago.frecuencia) &&
     (contado || hasText(pago.plazo)) &&
     hasText(pago.fechaProximoPago) &&
+    hasText(pago.diasEspecificosPago) &&
     parseMoney(pago.importeCadaPago) > 0 &&
     (contado || hasText(pago.anticipo));
   const descOk = discountError() === null;
@@ -998,7 +1125,9 @@ const stepComplete = computed<Record<StepKey, boolean>>(() => {
     segundo:
       hasText(sc.nombres) &&
       hasText(sc.apellidoPaterno) &&
-      isValidMxPhone(sc.celular),
+      isValidMxPhone(sc.celular) &&
+      !sameContactName(form.contacto, sc) &&
+      !sameContactAddress(form.contacto, sc),
     plan:
       Boolean(plan.productId) &&
       parkOk &&
@@ -1010,9 +1139,11 @@ const stepComplete = computed<Record<StepKey, boolean>>(() => {
     docs:
       hasIneDocumentos(form.documentos) &&
       Boolean(form.documentos.comprobanteDomicilio) &&
-      (!isDomiciliado.value ||
+      (!isNomina.value || Boolean(form.documentos.reciboNomina)) &&
+      (!needsCardSides.value ||
         (Boolean(form.documentos.tarjetaFrente) &&
           Boolean(form.documentos.tarjetaReverso))) &&
+      (!isUasNomina.value || Boolean(form.documentos.domiciliacionBanorte)) &&
       hasText(form.declaraciones.aceptaMercadotecnia) &&
       hasText(form.declaraciones.aceptaPublicidad),
   };
@@ -1098,17 +1229,14 @@ function missingFieldsFor(key: StepKey): string[] {
     if (!hasText(sc.apellidoPaterno)) missing.push('Apellido paterno');
     if (!hasText(sc.celular)) missing.push('Celular');
     else if (!isValidMxPhone(sc.celular)) missing.push('Celular válido');
+    missing.push(
+      ...titularSegundoDuplicateMessages(form.contacto, sc),
+    );
   }
 
   if (key === 'plan') {
     if (!plan.productId) missing.push('Plan');
-    if (
-      plan.planKind === 'PARQUE' &&
-      plan.preasignacion &&
-      !(plan.parkId && plan.sectionId && plan.quadrantId && plan.spaceId)
-    ) {
-      missing.push('Ubicación del parque');
-    }
+    missing.push(...parkLocationMissing(plan));
     if (plan.planKind === 'PLAN_FUTURO' && !hasText(plan.servicioFunerario)) {
       missing.push('Servicio funerario');
     }
@@ -1119,6 +1247,9 @@ function missingFieldsFor(key: StepKey): string[] {
     const contado = normalizeFrequency(pago.frecuencia) === 'CONTADO';
     if (!contado && !hasText(pago.plazo)) missing.push('Plazo');
     if (!hasText(pago.fechaProximoPago)) missing.push('Fecha del próximo pago');
+    if (!hasText(pago.diasEspecificosPago)) {
+      missing.push('Días específicos de pago');
+    }
     if (parseMoney(pago.importeCadaPago) <= 0) {
       missing.push('Importe de cada pago');
     }
@@ -1136,9 +1267,15 @@ function missingFieldsFor(key: StepKey): string[] {
     if (!form.documentos.comprobanteDomicilio) {
       missing.push('Comprobante de domicilio');
     }
-    if (isDomiciliado.value) {
+    if (isNomina.value && !form.documentos.reciboNomina) {
+      missing.push('Recibo de nómina más actual');
+    }
+    if (needsCardSides.value) {
       if (!form.documentos.tarjetaFrente) missing.push('Tarjeta (frente)');
       if (!form.documentos.tarjetaReverso) missing.push('Tarjeta (reverso)');
+    }
+    if (isUasNomina.value && !form.documentos.domiciliacionBanorte) {
+      missing.push('Documento de domiciliación Banorte');
     }
     if (!hasText(form.declaraciones.aceptaMercadotecnia)) {
       missing.push('Aceptación de mercadotecnia');
@@ -1283,7 +1420,7 @@ function syncNombreAsesor() {
 
 function syncFolioFromSaleId() {
   if (saleId.value) {
-    form.meta.folioSolicitud = String(saleId.value);
+    form.meta.folioSolicitud = formatDigitalFolio(saleId.value);
   }
 }
 
@@ -1354,8 +1491,14 @@ function validateScheduleDates(): string | null {
   if (form.meta.fechaServicio && isIsoDateBefore(form.meta.fechaServicio, min)) {
     return 'La fecha de servicio no puede ser anterior a hoy.';
   }
+  if (!hasText(form.pago.fechaProximoPago)) {
+    return 'La fecha del próximo pago es obligatoria.';
+  }
   if (isIsoDateBefore(form.pago.fechaProximoPago, min)) {
     return 'La fecha del próximo pago no puede ser anterior a hoy.';
+  }
+  if (!hasText(form.pago.diasEspecificosPago)) {
+    return 'Los días específicos de pago son obligatorios.';
   }
   return null;
 }
@@ -1517,7 +1660,10 @@ async function saveDraft() {
       variant: 'warning',
     });
     if (scheduleErr.includes('contrato')) openStep(0);
-    else if (scheduleErr.includes('próximo')) {
+    else if (
+      scheduleErr.includes('próximo') ||
+      scheduleErr.includes('específicos')
+    ) {
       openStep(4);
       planInnerTab.value = planSelected.value ? 'financiamiento' : 'plan';
     } else openStep(0);
@@ -1578,6 +1724,23 @@ async function saveDraft() {
 async function finalizeSale() {
   if (!canEdit.value) return;
 
+  const duplicateMessages = titularSegundoDuplicateMessages(
+    form.contacto,
+    form.segundoContacto,
+  );
+  if (duplicateMessages.length) {
+    await alert({
+      title: 'Segundo contacto',
+      message: duplicateMessages.join('\n'),
+      variant: 'warning',
+    });
+    openStep(4);
+    segundoInnerTab.value = segundoNombreDuplicado.value
+      ? 'personales'
+      : 'domicilio';
+    return;
+  }
+
   if (!allStepsComplete.value) {
     const idx = firstIncompleteStep.value ?? 0;
     await alert({
@@ -1623,7 +1786,10 @@ async function finalizeSale() {
       variant: 'warning',
     });
     if (scheduleErr.includes('contrato')) openStep(0);
-    else if (scheduleErr.includes('próximo')) {
+    else if (
+      scheduleErr.includes('próximo') ||
+      scheduleErr.includes('específicos')
+    ) {
       openStep(4);
       planInnerTab.value = planSelected.value ? 'financiamiento' : 'plan';
     } else openStep(0);
@@ -1643,11 +1809,11 @@ async function finalizeSale() {
   }
 
   const ok = await confirm({
-    title: 'Guardar venta',
+    title: 'Generar expediente',
     message:
       '¿Confirmas que todos los datos están correctos? La venta pasará a pendiente de pago.',
     variant: 'warning',
-    confirmText: 'Guardar venta',
+    confirmText: 'Generar expediente',
     cancelText: 'Seguir editando',
   });
   if (!ok) return;
@@ -1670,8 +1836,8 @@ async function finalizeSale() {
     router.replace({ name: 'vendedor-ventas' });
   } catch (e: unknown) {
     await alert({
-      title: 'Guardar venta',
-      message: extractApiError(e, 'No se pudo guardar la venta'),
+      title: 'Generar expediente',
+      message: extractApiError(e, 'No se pudo generar el expediente'),
       variant: 'danger',
     });
   } finally {
@@ -1860,6 +2026,7 @@ async function applyDevPrefill() {
     const contrato = form.meta.contrato;
     Object.assign(form.meta, mock.meta);
     form.meta.contrato = contrato;
+    applyDefaultServiceType();
   }
   if (devPrefillSteps.titular) {
     const contacto = { ...mock.contacto };
@@ -1892,6 +2059,10 @@ async function applyDevPrefill() {
     clampDescuento();
     recomputeSaldo();
     restorePagoInicialActivoFromForm();
+    if (isNomina.value) {
+      void loadEmpresasConvenio();
+      prefillNombreEmpleado();
+    }
   }
   if (devPrefillSteps.docs) {
     form.documentos.ineFrente = mock.documentos.ineFrente;
@@ -1899,6 +2070,9 @@ async function applyDevPrefill() {
     form.documentos.comprobanteDomicilio = mock.documentos.comprobanteDomicilio;
     form.documentos.tarjetaFrente = mock.documentos.tarjetaFrente;
     form.documentos.tarjetaReverso = mock.documentos.tarjetaReverso;
+    form.documentos.reciboNomina = mock.documentos.reciboNomina;
+    form.documentos.domiciliacionBanorte =
+      mock.documentos.domiciliacionBanorte;
     if (!devPrefillSteps.factura) {
       form.documentos.constanciaSituacionFiscal =
         mock.documentos.constanciaSituacionFiscal;
@@ -1929,7 +2103,9 @@ type CaptureDocKind =
   | 'comprobanteDomicilio'
   | 'constanciaSituacionFiscal'
   | 'tarjetaFrente'
-  | 'tarjetaReverso';
+  | 'tarjetaReverso'
+  | 'reciboNomina'
+  | 'domiciliacionBanorte';
 
 let inePdfSeq = 0;
 let cardPdfSeq = 0;
@@ -2241,7 +2417,7 @@ async function goBack() {
           Tipo de servicio
           <select
             :value="form.meta.serviceTypeId ?? ''"
-            :disabled="!canEdit"
+            :disabled="!canEdit || SERVICE_TYPE_LOCKED"
             @change="
               form.meta.serviceTypeId = ($event.target as HTMLSelectElement).value
                 ? Number(($event.target as HTMLSelectElement).value)
@@ -2667,9 +2843,22 @@ async function goBack() {
             </label>
             <label>
               Parentesco
-              <input
-                v-model="form.derechohabientes.titularSustituto.parentesco"
+              <VdSelect
+                :model-value="
+                  relationSelectValue(form.derechohabientes.titularSustituto)
+                "
+                :options="parentescoOptions"
+                :default-options="parentescoDefaultOptions"
+                placeholder="Selecciona"
+                searchable
+                search-placeholder="Buscar relación…"
                 :disabled="!canEdit"
+                @update:model-value="
+                  onRelationChange(
+                    form.derechohabientes.titularSustituto,
+                    $event,
+                  )
+                "
               />
             </label>
             <label>
@@ -2746,7 +2935,16 @@ async function goBack() {
             </label>
             <label>
               Parentesco
-              <input v-model="b.parentesco" :disabled="!canEdit" />
+              <VdSelect
+                :model-value="relationSelectValue(b)"
+                :options="parentescoOptions"
+                :default-options="parentescoDefaultOptions"
+                placeholder="Selecciona"
+                searchable
+                search-placeholder="Buscar relación…"
+                :disabled="!canEdit"
+                @update:model-value="onRelationChange(b, $event)"
+              />
             </label>
             <label>
               Celular
@@ -2809,6 +3007,9 @@ async function goBack() {
           <label class="span-2">
             Nombre(s)
             <input v-model="form.segundoContacto.nombres" :disabled="!canEdit" />
+            <small v-if="segundoNombreDuplicado" class="field-error">
+              No puede ser la misma persona que el titular.
+            </small>
           </label>
           <div class="field-row">
             <label>
@@ -2829,9 +3030,17 @@ async function goBack() {
           <div class="field-row">
             <label>
               Parentesco
-              <input
-                v-model="form.segundoContacto.parentesco"
+              <VdSelect
+                :model-value="relationSelectValue(form.segundoContacto)"
+                :options="parentescoOptions"
+                :default-options="parentescoDefaultOptions"
+                placeholder="Selecciona"
+                searchable
+                search-placeholder="Buscar relación…"
                 :disabled="!canEdit"
+                @update:model-value="
+                  onRelationChange(form.segundoContacto, $event)
+                "
               />
             </label>
             <label>
@@ -2869,6 +3078,9 @@ async function goBack() {
               v-model="form.segundoContacto.direccion"
               :disabled="!canEdit"
             />
+            <small v-if="segundoDomicilioDuplicado" class="field-error">
+              No puede ser el mismo domicilio que el del titular.
+            </small>
           </label>
           <div class="field-row">
             <label>
@@ -2943,11 +3155,11 @@ async function goBack() {
             :title="
               planSelected
                 ? undefined
-                : 'Selecciona un plan antes de capturar el método de pago'
+                : 'Selecciona un plan antes de capturar el tipo de cobranza'
             "
             @click="openPlanMetodoPagoTab"
           >
-            Método de pago
+            Tipo de cobranza
           </button>
         </div>
 
@@ -2960,7 +3172,7 @@ async function goBack() {
               :disabled="!canEdit"
               @change="onPlanKindChange"
             >
-              <option value="PLAN_FUTURO">Plan futuro</option>
+              <option value="PLAN_FUTURO">Servicio funerario</option>
               <option value="PARQUE">Parque</option>
             </select>
           </label>
@@ -3015,37 +3227,41 @@ async function goBack() {
               Preasignación de ubicación
             </label>
 
+            <div class="span-2 plan-name">
+              <button
+                type="button"
+                class="btn btn-ghost plan-name__search"
+                :disabled="!canEdit"
+                @click="locationSearchOpen = true"
+              >
+                {{
+                  form.ubicacionPlan.preasignacion
+                    ? 'Buscar ubicación'
+                    : 'Buscar parque y sección'
+                }}
+              </button>
+            </div>
+            <label>
+              Parque *
+              <input
+                :value="form.ubicacionPlan.parqueFuneral"
+                readonly
+                class="plan-name__readonly"
+                placeholder="—"
+              />
+            </label>
+            <label>
+              Sección *
+              <input
+                :value="form.ubicacionPlan.seccion"
+                readonly
+                class="plan-name__readonly"
+                placeholder="—"
+              />
+            </label>
             <template v-if="form.ubicacionPlan.preasignacion">
-              <div class="span-2 plan-name">
-                <button
-                  type="button"
-                  class="btn btn-ghost plan-name__search"
-                  :disabled="!canEdit"
-                  @click="locationSearchOpen = true"
-                >
-                  Buscar ubicación
-                </button>
-              </div>
               <label>
-                Parque
-                <input
-                  :value="form.ubicacionPlan.parqueFuneral"
-                  readonly
-                  class="plan-name__readonly"
-                  placeholder="—"
-                />
-              </label>
-              <label>
-                Sección
-                <input
-                  :value="form.ubicacionPlan.seccion"
-                  readonly
-                  class="plan-name__readonly"
-                  placeholder="—"
-                />
-              </label>
-              <label>
-                Cuadrante
+                Cuadrante *
                 <input
                   :value="form.ubicacionPlan.cuadrante"
                   readonly
@@ -3054,7 +3270,7 @@ async function goBack() {
                 />
               </label>
               <label>
-                Ubicación
+                Ubicación *
                 <input
                   :value="form.ubicacionPlan.numero"
                   readonly
@@ -3201,20 +3417,22 @@ async function goBack() {
             </span>
           </label>
           <label>
-            Próximo pago
+            Próximo pago *
             <input
               v-model="form.pago.fechaProximoPago"
               type="date"
               :min="minDateToday"
               :disabled="!canEdit"
+              required
               @change="clampScheduleDates"
             />
           </label>
           <label>
-            Días específicos
+            Días específicos *
             <input
               v-model="form.pago.diasEspecificosPago"
               :disabled="!canEdit"
+              required
               placeholder="Ej. 15 de cada mes"
             />
           </label>
@@ -3327,6 +3545,10 @@ async function goBack() {
                 class="hint"
               >
                 No se encontraron empresas de convenio.
+              </span>
+              <span v-else-if="isUasNomina" class="hint">
+                UAS también pide tarjeta (frente y reverso) y el documento de
+                domiciliación Banorte en Documentos.
               </span>
             </label>
             <label class="span-2">
@@ -3659,7 +3881,91 @@ async function goBack() {
           </div>
 
           <div
-            v-if="isDomiciliado"
+            v-if="isNomina"
+            class="upload-card"
+            :class="{
+              'upload-card--filled': form.documentos.reciboNomina,
+              'upload-card--disabled': !canEdit,
+            }"
+          >
+            <div class="upload-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M7 3.5h7.2L19 8.3V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M14 3.5V8h5"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M9 13h6M9 16.5h4"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
+            <div class="upload-card__body">
+              <strong>Recibo de nómina más actual</strong>
+              <template v-if="form.documentos.reciboNomina">
+                <span class="upload-card__name">{{
+                  form.documentos.reciboNomina.name
+                }}</span>
+                <span class="upload-card__meta">{{
+                  fileKindLabel(form.documentos.reciboNomina.mime)
+                }}</span>
+              </template>
+              <span v-else class="upload-card__hint"
+                >Último recibo de nómina del empleado. Imagen o PDF</span
+              >
+            </div>
+            <div class="upload-card__actions">
+              <label class="upload-card__btn">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  :disabled="!canEdit"
+                  @change="onFile('reciboNomina', $event)"
+                />
+                <span class="upload-card__btn-ui" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 16V5M12 5l-3.5 3.5M12 5l3.5 3.5"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M5 16.5V18a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18v-1.5"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="upload-card__btn-text">{{
+                  form.documentos.reciboNomina ? 'Cambiar' : 'Adjuntar'
+                }}</span>
+              </label>
+              <button
+                v-if="form.documentos.reciboNomina && canEdit"
+                type="button"
+                class="upload-card__remove"
+                @click="clearFile('reciboNomina')"
+              >
+                Quitar
+              </button>
+            </div>
+          </div>
+
+          <div
+            v-if="needsCardSides"
             class="upload-card"
             :class="{
               'upload-card--filled': form.documentos.tarjetaFrente,
@@ -3736,7 +4042,7 @@ async function goBack() {
           </div>
 
           <div
-            v-if="isDomiciliado"
+            v-if="needsCardSides"
             class="upload-card"
             :class="{
               'upload-card--filled': form.documentos.tarjetaReverso,
@@ -3813,11 +4119,95 @@ async function goBack() {
           </div>
 
           <p
-            v-if="isDomiciliado && form.documentos.tarjetaPdf"
+            v-if="needsCardSides && form.documentos.tarjetaPdf"
             class="upload-card__hint span-2"
           >
             Ya se armó el PDF con ambos lados en una hoja para el expediente.
           </p>
+
+          <div
+            v-if="isUasNomina"
+            class="upload-card"
+            :class="{
+              'upload-card--filled': form.documentos.domiciliacionBanorte,
+              'upload-card--disabled': !canEdit,
+            }"
+          >
+            <div class="upload-card__icon" aria-hidden="true">
+              <svg viewBox="0 0 24 24" fill="none">
+                <path
+                  d="M7 3.5h7.2L19 8.3V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5z"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M14 3.5V8h5"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linejoin="round"
+                />
+                <path
+                  d="M9 13h6M9 16.5h4"
+                  stroke="currentColor"
+                  stroke-width="1.7"
+                  stroke-linecap="round"
+                />
+              </svg>
+            </div>
+            <div class="upload-card__body">
+              <strong>Documento de domiciliación Banorte</strong>
+              <template v-if="form.documentos.domiciliacionBanorte">
+                <span class="upload-card__name">{{
+                  form.documentos.domiciliacionBanorte.name
+                }}</span>
+                <span class="upload-card__meta">{{
+                  fileKindLabel(form.documentos.domiciliacionBanorte.mime)
+                }}</span>
+              </template>
+              <span v-else class="upload-card__hint"
+                >Formato Banorte FO-GEN-SMGF-06. Imagen o PDF</span
+              >
+            </div>
+            <div class="upload-card__actions">
+              <label class="upload-card__btn">
+                <input
+                  type="file"
+                  accept="image/*,.pdf"
+                  :disabled="!canEdit"
+                  @change="onFile('domiciliacionBanorte', $event)"
+                />
+                <span class="upload-card__btn-ui" aria-hidden="true">
+                  <svg viewBox="0 0 24 24" fill="none">
+                    <path
+                      d="M12 16V5M12 5l-3.5 3.5M12 5l3.5 3.5"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                      stroke-linejoin="round"
+                    />
+                    <path
+                      d="M5 16.5V18a1.5 1.5 0 0 0 1.5 1.5h11A1.5 1.5 0 0 0 19 18v-1.5"
+                      stroke="currentColor"
+                      stroke-width="2"
+                      stroke-linecap="round"
+                    />
+                  </svg>
+                </span>
+                <span class="upload-card__btn-text">{{
+                  form.documentos.domiciliacionBanorte ? 'Cambiar' : 'Adjuntar'
+                }}</span>
+              </label>
+              <button
+                v-if="form.documentos.domiciliacionBanorte && canEdit"
+                type="button"
+                class="upload-card__remove"
+                @click="clearFile('domiciliacionBanorte')"
+              >
+                Quitar
+              </button>
+            </div>
+          </div>
 
           <div
             v-if="pideFactura"
@@ -4009,6 +4399,47 @@ async function goBack() {
               </div>
             </div>
 
+            <div class="upload-card upload-card--filled">
+              <div class="upload-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M7 3.5h7.2L19 8.3V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5z"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M14 3.5V8h5"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9 13h6M9 16.5h4"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="upload-card__body">
+                <strong>Carta de aceptación de exclusiones</strong>
+                <span class="upload-card__hint"
+                  >Anexo A del contrato. Se llena con titular, sucursal y fecha.
+                  Mientras no se firme aparece como borrador</span
+                >
+              </div>
+              <div class="upload-card__actions">
+                <button
+                  type="button"
+                  class="upload-card__btn"
+                  @click="cartaExclusionesPreviewOpen = true"
+                >
+                  <span class="upload-card__btn-text">Vista previa</span>
+                </button>
+              </div>
+            </div>
+
             <div
               v-if="isParque"
               class="upload-card upload-card--filled"
@@ -4038,8 +4469,8 @@ async function goBack() {
               <div class="upload-card__body">
                 <strong>Reglamento de parque</strong>
                 <span class="upload-card__hint"
-                  >Se llena con el titular, contrato y fecha. Mientras no se
-                  firme aparece como borrador</span
+                  >Carta de reglas para el cliente. Mientras no se firme aparece
+                  como borrador</span
                 >
               </div>
               <div class="upload-card__actions">
@@ -4047,6 +4478,51 @@ async function goBack() {
                   type="button"
                   class="upload-card__btn"
                   @click="reglamentoParquePreviewOpen = true"
+                >
+                  <span class="upload-card__btn-text">Vista previa</span>
+                </button>
+              </div>
+            </div>
+
+            <div
+              v-if="isParque"
+              class="upload-card upload-card--filled"
+            >
+              <div class="upload-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M7 3.5h7.2L19 8.3V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5z"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M14 3.5V8h5"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9 13h6M9 16.5h4"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="upload-card__body">
+                <strong>Reglamento de parque (artículos)</strong>
+                <span class="upload-card__hint"
+                  >Folleto carta apaisada · 2 hojas (artículos 1–32). Cada hoja
+                  junta 2 páginas carta. Mientras no se firme aparece como
+                  borrador</span
+                >
+              </div>
+              <div class="upload-card__actions">
+                <button
+                  type="button"
+                  class="upload-card__btn"
+                  @click="reglamentoParqueFolletoPreviewOpen = true"
                 >
                   <span class="upload-card__btn-text">Vista previa</span>
                 </button>
@@ -4102,7 +4578,52 @@ async function goBack() {
             </div>
 
             <div
-              v-if="isDomiciliado && form.documentos.tarjetaFrente && form.documentos.tarjetaReverso"
+              v-if="isNomina && form.pago.empresaNominaId"
+              class="upload-card upload-card--filled"
+            >
+              <div class="upload-card__icon" aria-hidden="true">
+                <svg viewBox="0 0 24 24" fill="none">
+                  <path
+                    d="M7 3.5h7.2L19 8.3V20a1.5 1.5 0 0 1-1.5 1.5h-10A1.5 1.5 0 0 1 6 20V5a1.5 1.5 0 0 1 1-1.5z"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M14 3.5V8h5"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linejoin="round"
+                  />
+                  <path
+                    d="M9 13h6M9 16.5h4"
+                    stroke="currentColor"
+                    stroke-width="1.7"
+                    stroke-linecap="round"
+                  />
+                </svg>
+              </div>
+              <div class="upload-card__body">
+                <strong>Carta de consentimiento (nómina)</strong>
+                <span class="upload-card__hint">
+                  FO-GEN-SMGF-05 para
+                  {{ form.pago.empresaNomina || 'la empresa de convenio' }}.
+                  Mientras no se firme aparece como borrador
+                </span>
+              </div>
+              <div class="upload-card__actions">
+                <button
+                  type="button"
+                  class="upload-card__btn"
+                  @click="cartaNominaPreviewOpen = true"
+                >
+                  <span class="upload-card__btn-text">Vista previa</span>
+                </button>
+              </div>
+            </div>
+
+            <div
+              v-if="needsCardSides && form.documentos.tarjetaFrente && form.documentos.tarjetaReverso"
               class="upload-card upload-card--filled"
             >
               <div class="upload-card__icon" aria-hidden="true">
@@ -4274,7 +4795,7 @@ async function goBack() {
             :disabled="submitting || saving"
             @click="finalizeSale"
           >
-            {{ submitting ? 'Guardando…' : 'Guardar venta' }}
+            {{ submitting ? 'Generando…' : 'Generar expediente' }}
           </button>
         </template>
       </div>
@@ -4304,6 +4825,14 @@ async function goBack() {
       @close="cartaNoFacturaPreviewOpen = false"
     />
     <SalePdfPreviewModal
+      kind="cartaExclusiones"
+      :open="cartaExclusionesPreviewOpen"
+      :form="form"
+      :sale-id="saleId"
+      :status="status === 'NEW' ? undefined : status"
+      @close="cartaExclusionesPreviewOpen = false"
+    />
+    <SalePdfPreviewModal
       kind="reglamentoParque"
       :open="reglamentoParquePreviewOpen"
       :form="form"
@@ -4312,12 +4841,28 @@ async function goBack() {
       @close="reglamentoParquePreviewOpen = false"
     />
     <SalePdfPreviewModal
+      kind="reglamentoParqueFolleto"
+      :open="reglamentoParqueFolletoPreviewOpen"
+      :form="form"
+      :sale-id="saleId"
+      :status="status === 'NEW' ? undefined : status"
+      @close="reglamentoParqueFolletoPreviewOpen = false"
+    />
+    <SalePdfPreviewModal
       kind="cartaAutorizacion"
       :open="cartaAuthPreviewOpen"
       :form="form"
       :sale-id="saleId"
       :status="status === 'NEW' ? undefined : status"
       @close="cartaAuthPreviewOpen = false"
+    />
+    <SalePdfPreviewModal
+      kind="cartaNomina"
+      :open="cartaNominaPreviewOpen"
+      :form="form"
+      :sale-id="saleId"
+      :status="status === 'NEW' ? undefined : status"
+      @close="cartaNominaPreviewOpen = false"
     />
     <SalePdfPreviewModal
       kind="tarjeta"
@@ -4346,6 +4891,7 @@ async function goBack() {
 
     <SaleLocationSearchModal
       :open="locationSearchOpen"
+      :stop-at="form.ubicacionPlan.preasignacion ? 'espacio' : 'seccion'"
       @close="locationSearchOpen = false"
       @select="onLocationSelected"
     />

@@ -17,6 +17,7 @@ export type SellerPrefetch = {
   branches: SaleBranch[];
   serviceTypes: SaleBranch[];
   convenioCompanies: SaleBranch[];
+  parentescos: SaleBranch[];
 };
 
 function asList(value: unknown): SaleBranch[] {
@@ -31,9 +32,21 @@ function rawHasConvenio(parsed: unknown): boolean {
   );
 }
 
+function rawHasParentescos(parsed: unknown): boolean {
+  return Boolean(
+    parsed &&
+      typeof parsed === 'object' &&
+      Array.isArray((parsed as { parentescos?: unknown }).parentescos) &&
+      ((parsed as { parentescos: unknown[] }).parentescos.length > 0),
+  );
+}
+
 function cacheIsReady(parsed: unknown, cached: SellerPrefetch | null): boolean {
   return Boolean(
-    cached && rawHasConvenio(parsed) && !defaultsNeedPlanNames(cached.defaults),
+    cached &&
+      rawHasConvenio(parsed) &&
+      rawHasParentescos(parsed) &&
+      !defaultsNeedPlanNames(cached.defaults),
   );
 }
 
@@ -50,6 +63,7 @@ export function readSellerPrefetch(userId?: number | null): SellerPrefetch | nul
       branches: asList(parsed.branches),
       serviceTypes: asList(parsed.serviceTypes),
       convenioCompanies: asList(parsed.convenioCompanies),
+      parentescos: asList(parsed.parentescos),
     };
   } catch {
     return null;
@@ -69,6 +83,7 @@ export function patchSellerPrefetch(partial: Partial<SellerPrefetch>) {
     branches: partial.branches ?? current.branches,
     serviceTypes: partial.serviceTypes ?? current.serviceTypes,
     convenioCompanies: partial.convenioCompanies ?? current.convenioCompanies,
+    parentescos: partial.parentescos ?? current.parentescos,
   });
 }
 
@@ -80,6 +95,13 @@ let inflight: Promise<SellerPrefetch> | null = null;
 
 async function fetchConvenioCompanies(): Promise<SaleBranch[]> {
   const { data } = await http.get<SaleBranch[]>('/odoo/empresas-convenio', {
+    skipGlobalLoading: true,
+  });
+  return asList(data);
+}
+
+async function fetchParentescos(): Promise<SaleBranch[]> {
+  const { data } = await http.get<SaleBranch[]>('/odoo/parentescos', {
     skipGlobalLoading: true,
   });
   return asList(data);
@@ -109,6 +131,13 @@ export async function prefetchSellerSession(
           next = { ...next, convenioCompanies: [] };
         }
       }
+      if (!rawHasParentescos(parsed)) {
+        try {
+          next = { ...next, parentescos: await fetchParentescos() };
+        } catch {
+          next = { ...next, parentescos: [] };
+        }
+      }
       if (defaultsNeedPlanNames(next.defaults)) {
         next = {
           ...next,
@@ -124,6 +153,7 @@ export async function prefetchSellerSession(
       { data: typeData },
       { data: defaults },
       convenioCompanies,
+      parentescos,
     ] = await Promise.all([
       http.get<SaleBranch[]>('/odoo/sucursales', { skipGlobalLoading: true }),
       http.get<SaleBranch[]>('/odoo/tipos-servicio', {
@@ -133,6 +163,7 @@ export async function prefetchSellerSession(
         skipGlobalLoading: true,
       }),
       fetchConvenioCompanies().catch(() => [] as SaleBranch[]),
+      fetchParentescos().catch(() => [] as SaleBranch[]),
     ]);
     const payload: SellerPrefetch = {
       userId,
@@ -143,6 +174,7 @@ export async function prefetchSellerSession(
       branches: asList(branchData),
       serviceTypes: asList(typeData),
       convenioCompanies,
+      parentescos,
     };
     writeSellerPrefetch(payload);
     return payload;

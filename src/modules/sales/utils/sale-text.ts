@@ -34,6 +34,7 @@ const SKIP_KEYS = new Set([
   'cuentaPago',
   'cvv',
   'vencimientoTarjeta',
+  'parentesco',
 ]);
 
 const SKIP_INPUT_TYPES = new Set([

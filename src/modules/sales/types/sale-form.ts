@@ -37,6 +37,8 @@ export interface SalePersonName {
 }
 
 export interface SaleBeneficiary extends SalePersonName {
+  /** Id Odoo `sale.order.relation` (`sale.order.beneficiary.relation_id`). */
+  relationId: number | null;
   parentesco: string;
   celular: string;
   fechaNacimiento: string;
@@ -102,6 +104,8 @@ export interface SaleFormData {
   };
   segundoContacto: SalePersonName & {
     celular: string;
+    /** Id Odoo `sale.order.relation`. */
+    relationId: number | null;
     parentesco: string;
     direccion: string;
     colonia: string;
@@ -189,14 +193,19 @@ export interface SaleFormData {
     tarjetaFrente: SaleAttachment | null;
     tarjetaReverso: SaleAttachment | null;
     tarjetaPdf: SaleAttachment | null;
+    reciboNomina: SaleAttachment | null;
+    domiciliacionBanorte: SaleAttachment | null;
     firmaCliente: SaleAttachment | null;
     ticketPago: SaleAttachment | null;
     comprobanteTransferencia: SaleAttachment | null;
     caratulaPdf: SaleAttachment | null;
     cartaFacturaPdf: SaleAttachment | null;
     cartaNoFacturaPdf: SaleAttachment | null;
+    cartaExclusionesPdf: SaleAttachment | null;
     reglamentoParquePdf: SaleAttachment | null;
+    reglamentoParqueFolletoPdf: SaleAttachment | null;
     cartaAutorizacionPdf: SaleAttachment | null;
+    cartaNominaPdf: SaleAttachment | null;
   };
 }
 
@@ -228,6 +237,17 @@ export interface SaleListItem {
   saldo?: string;
 }
 
+/** Folio digital: D- + número de venta. */
+export function formatDigitalFolio(
+  id: number | string | null | undefined,
+): string {
+  const raw = String(id ?? '').trim();
+  if (!raw) return '';
+  const digits = raw.replace(/^D-/i, '').replace(/\D/g, '');
+  if (!digits) return raw;
+  return `D-${Number(digits)}`;
+}
+
 /** Folio de cotización Odoo. Ignora placeholders de prefill / mocks. */
 export function realContrato(v: string | null | undefined): string {
   const t = String(v ?? '').trim();
@@ -242,6 +262,7 @@ export function emptyPerson(): SalePersonName {
 export function emptyBeneficiary(): SaleBeneficiary {
   return {
     ...emptyPerson(),
+    relationId: null,
     parentesco: '',
     celular: '',
     fechaNacimiento: '',
@@ -317,6 +338,7 @@ export function createEmptySaleForm(): SaleFormData {
     segundoContacto: {
       ...emptyPerson(),
       celular: '',
+      relationId: null,
       parentesco: '',
       direccion: '',
       colonia: '',
@@ -387,14 +409,19 @@ export function createEmptySaleForm(): SaleFormData {
       tarjetaFrente: null,
       tarjetaReverso: null,
       tarjetaPdf: null,
+      reciboNomina: null,
+      domiciliacionBanorte: null,
       firmaCliente: null,
       ticketPago: null,
       comprobanteTransferencia: null,
       caratulaPdf: null,
       cartaFacturaPdf: null,
       cartaNoFacturaPdf: null,
+      cartaExclusionesPdf: null,
       reglamentoParquePdf: null,
+      reglamentoParqueFolletoPdf: null,
       cartaAutorizacionPdf: null,
+      cartaNominaPdf: null,
     },
   };
 }
@@ -485,11 +512,12 @@ export function createPrefillSaleForm(): SaleFormData {
     apellidoMaterno: 'Ruiz',
     nombres: 'José Luis',
     celular: '6675551212',
+    relationId: null,
     parentesco: 'Esposo',
-    direccion: 'Calle Hidalgo 245',
-    colonia: 'Centro',
-    cp: '80000',
-    entreCalles: 'Juárez y Morelos',
+    direccion: 'Av. Álvaro Obregón 18',
+    colonia: 'Guadalupe',
+    cp: '80200',
+    entreCalles: 'Reforma y Independencia',
     fechaNacimiento: '1982-07-22',
   };
   base.beneficiarios = [
@@ -602,11 +630,25 @@ export function mergeSaleForm(raw: unknown): SaleFormData {
     }
   }
   if (!beneficiarios.length) beneficiarios = [emptyBeneficiary()];
-  beneficiarios = beneficiarios.slice(0, 2);
+  beneficiarios = beneficiarios.slice(0, 2).map((b) => ({
+    ...b,
+    relationId:
+      b.relationId != null && Number(b.relationId) > 0
+        ? Number(b.relationId)
+        : null,
+  }));
 
-  const titularSustituto = src.derechohabientes?.titularSustituto
+  const titularSustitutoRaw = src.derechohabientes?.titularSustituto
     ? { ...emptyBeneficiary(), ...src.derechohabientes.titularSustituto }
     : emptyBeneficiary();
+  const titularSustituto = {
+    ...titularSustitutoRaw,
+    relationId:
+      titularSustitutoRaw.relationId != null &&
+      Number(titularSustitutoRaw.relationId) > 0
+        ? Number(titularSustitutoRaw.relationId)
+        : null,
+  };
 
   return {
     ...base,
@@ -661,6 +703,11 @@ export function mergeSaleForm(raw: unknown): SaleFormData {
     segundoContacto: {
       ...base.segundoContacto,
       ...(src.segundoContacto ?? {}),
+      relationId:
+        src.segundoContacto?.relationId != null &&
+        Number(src.segundoContacto.relationId) > 0
+          ? Number(src.segundoContacto.relationId)
+          : null,
     },
     beneficiarios,
     derechohabientes: syncDerechos(beneficiarios, titularSustituto),
@@ -729,14 +776,20 @@ export function mergeSaleForm(raw: unknown): SaleFormData {
       tarjetaFrente: src.documentos?.tarjetaFrente ?? null,
       tarjetaReverso: src.documentos?.tarjetaReverso ?? null,
       tarjetaPdf: src.documentos?.tarjetaPdf ?? null,
+      reciboNomina: src.documentos?.reciboNomina ?? null,
+      domiciliacionBanorte: src.documentos?.domiciliacionBanorte ?? null,
       firmaCliente: src.documentos?.firmaCliente ?? null,
       ticketPago: src.documentos?.ticketPago ?? null,
       comprobanteTransferencia: src.documentos?.comprobanteTransferencia ?? null,
       caratulaPdf: src.documentos?.caratulaPdf ?? null,
       cartaFacturaPdf: src.documentos?.cartaFacturaPdf ?? null,
       cartaNoFacturaPdf: src.documentos?.cartaNoFacturaPdf ?? null,
+      cartaExclusionesPdf: src.documentos?.cartaExclusionesPdf ?? null,
       reglamentoParquePdf: src.documentos?.reglamentoParquePdf ?? null,
+      reglamentoParqueFolletoPdf:
+        src.documentos?.reglamentoParqueFolletoPdf ?? null,
       cartaAutorizacionPdf: src.documentos?.cartaAutorizacionPdf ?? null,
+      cartaNominaPdf: src.documentos?.cartaNominaPdf ?? null,
     },
   };
 }

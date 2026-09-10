@@ -1,6 +1,7 @@
 export type SaleBranch = {
   id: number;
   name: string;
+  attention?: string | null;
 };
 
 /** Id en catálogo. Nombre/precio se cachean en sesión para no pedirlos otra vez. */

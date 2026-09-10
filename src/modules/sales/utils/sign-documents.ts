@@ -3,8 +3,11 @@ import { normalizeTipoCobranza } from './payment-method';
 
 export type SignDocumentKind =
   | 'caratula'
+  | 'cartaExclusiones'
   | 'reglamentoParque'
+  | 'reglamentoParqueFolleto'
   | 'cartaAutorizacion'
+  | 'cartaNomina'
   | 'cartaNoFactura'
   | 'cartaFactura';
 
@@ -22,13 +25,23 @@ export function listSignDocuments(form: SaleFormData): SignDocument[] {
       title: 'Carátula del contrato',
       hint: 'Datos del contrato y declaraciones',
     },
+    {
+      kind: 'cartaExclusiones',
+      title: 'Carta de aceptación de exclusiones',
+      hint: 'Anexo A · plan de previsión',
+    },
   ];
 
   if (form.ubicacionPlan.planKind === 'PARQUE') {
     docs.push({
       kind: 'reglamentoParque',
       title: 'Reglamento de parque',
-      hint: 'Normas del parque funeral',
+      hint: 'Carta de reglas para el cliente',
+    });
+    docs.push({
+      kind: 'reglamentoParqueFolleto',
+      title: 'Reglamento de parque (artículos)',
+      hint: 'Folleto carta apaisada · 2 páginas por hoja',
     });
   }
 
@@ -37,6 +50,19 @@ export function listSignDocuments(form: SaleFormData): SignDocument[] {
       kind: 'cartaAutorizacion',
       title: 'Carta de autorización',
       hint: 'Cargo automático a tarjeta',
+    });
+  }
+
+  if (
+    normalizeTipoCobranza(form.contacto.tipoCobranza) === 'NOMINA' &&
+    form.pago.empresaNominaId
+  ) {
+    docs.push({
+      kind: 'cartaNomina',
+      title: 'Carta de consentimiento (nómina)',
+      hint: form.pago.empresaNomina
+        ? `FO-GEN-SMGF-05 · ${form.pago.empresaNomina}`
+        : 'Descuento por convenio',
     });
   }
 

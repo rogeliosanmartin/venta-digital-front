@@ -15,12 +15,15 @@ const props = withDefaults(
     disabled?: boolean;
     searchable?: boolean;
     searchPlaceholder?: string;
+    /** Si hay búsqueda vacía, muestra estas opciones en vez de toda la lista. */
+    defaultOptions?: VdSelectOption[];
   }>(),
   {
     placeholder: 'Selecciona',
     disabled: false,
     searchable: false,
     searchPlaceholder: 'Buscar…',
+    defaultOptions: () => [],
   },
 );
 
@@ -42,10 +45,20 @@ const selected = computed(
 
 const filtered = computed(() => {
   const q = query.value.trim().toLowerCase();
-  if (!q) return props.options;
-  return props.options.filter((opt) =>
-    `${opt.label} ${opt.hint ?? ''}`.toLowerCase().includes(q),
-  );
+  if (q) {
+    return props.options.filter((opt) =>
+      `${opt.label} ${opt.hint ?? ''}`.toLowerCase().includes(q),
+    );
+  }
+  if (!props.defaultOptions.length) return props.options;
+  const pinned = [...props.defaultOptions];
+  if (
+    selected.value &&
+    !pinned.some((opt) => sameValue(opt.value, selected.value?.value))
+  ) {
+    pinned.unshift(selected.value);
+  }
+  return pinned;
 });
 
 function sameValue(a: unknown, b: unknown) {

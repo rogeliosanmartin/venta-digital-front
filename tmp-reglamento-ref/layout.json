@@ -1,0 +1,298 @@
+[
+  {
+    "page": 1,
+    "rect": [
+      820.3460083007812,
+      640.3460083007812
+    ],
+    "fonts": [
+      [
+        9,
+        "ttf",
+        "Type0",
+        "GMUCXV+FedraSansPro-Light",
+        "C2_0",
+        "Identity-H",
+        0
+      ],
+      [
+        6,
+        "ttf",
+        "TrueType",
+        "GMUCXV+Recline-Medium",
+        "TT0",
+        "WinAnsiEncoding",
+        0
+      ],
+      [
+        7,
+        "ttf",
+        "TrueType",
+        "GMUCXV+FedraSansPro-Normal",
+        "TT1",
+        "WinAnsiEncoding",
+        0
+      ],
+      [
+        8,
+        "ttf",
+        "TrueType",
+        "GMUCXV+FedraSansPro-Light",
+        "TT2",
+        "WinAnsiEncoding",
+        0
+      ],
+      [
+        18,
+        "ttf",
+        "TrueType",
+        "GMUCXV+FedraSansPro-Medium",
+        "TT3",
+        "WinAnsiEncoding",
+        0
+      ],
+      [
+        10,
+        "ttf",
+        "TrueType",
+        "GMUCXV+Recline-SemiBold",
+        "TT4",
+        "WinAnsiEncoding",
+        0
+      ]
+    ],
+    "images": [],
+    "blocks": [
+      {
+        "bbox": [
+          36.4,
+          289.1,
+          131.9,
+          309.8
+        ],
+        "size": 18.0,
+        "font": "Recline-Medium",
+        "color": 13541750,
+        "flags": 4,
+        "text": "SANCIONES"
+      },
+      {
+        "bbox": [
+          36.4,
+          315.1,
+          389.5,
+          414.4
+        ],
+        "size": 7.5,
+        "font": "FedraSansPro-Normal",
+        "color": 3368063,
+        "flags": 4,
+        "text": "Artículo 32.-  La violación a cualquiera de las reglas contenidas en el presente reglamento por el titular de los derechos de uso mortuorio perpetuo o temporal, titular sustituto, beneﬁciarios, familiares, dependientes, empleados visitas o por terceros con instrucción de cualquiera de las anteriores, será causa de rescisión del contrato de compraventa de cesión de derechos de uso a perpetuidad o temporal, dándose por concluido el plazo de su duración y en caso de que se haya utilizado el servicio, dará lugar a la exhumación de los restos, conforme a las leyes administrativas y sanitarias correspondientes, que serán entregados al titular y en caso de negativa a recibirlos, se depositaránen la fosa común, quedando la concesionaria en libertad de disponer del espacio en cuestión. Adicionalmente la administración está facultada a iniciar en contra del infractor, las acciones legales, civiles, penales o administrativas que correspondan."
+      },
+      {
+        "bbox": [
+          36.4,
+          96.8,
+          389.5,
+          246.1
+        ],
+        "size": 7.5,
+        "font": "FedraSansPro-Normal",
+        "color": 3368063,
+        "flags": 4,
+        "text": "Artículo 27.- No podrán ser inhumados cadáveres humanos en lugares y áreas comunes y de circulación dentro del Parque Funeral San Martín.Artículo 28.- Queda estrictamente prohibido la construcción y/o levantamiento de mausoleos, capillas y túmulos, así como la colocación de placas y recipientes distintos a los autorizados por la administración, así como la colocación de objetos que alteren o modiﬁque la imagen del parque, que impidan los trabajos de mantenimiento o afecten la seguridad de visitantes tales como mantas, globos, ﬁguras religiosas, juguetes, cercas, adornos y cualquier otro objeto similar; arreglos ﬂorales de dimensión superior a 60 centímetros cuadrados y de cualquier clase de ornamentación.Artículo 29.- Queda prohibido el establecimiento de toda clase de comercios dentro de los límites de Parque Funeral San Martín, así como la venta de cualquier clase de mercancías relacionadas o no con el culto a los muertos.Artículo 30.- Se prohíbe plantar, destruir o arrancar árboles y plantas de las áreas de Parque Funeral San Martín, así como cortar ﬂores, ya sean silvestres o cultivadas.Artículo 31.-  Se prohíbe la ﬁjación de avisos, leyendas, anuncios o cualquier otra forma de propaganda, política o religiosa dentro de Parque Funeral San Martín."
+      },
+      {
+        "bbox": [
+          36.4,
+          70.7,
+          166.2,
+          91.4
+        ],
+        "size": 18.0,
+        "font": "Recline-Medium",
+        "color": 13541750,
+        "flags": 4,
+        "text": "PROHIBICIONES"
+      },
+      {
+        "bbox": [
+          451.8,
+          115.3,
+          763.1,
+          127.7
+        ],
+        "size": 10.0,
+        "font": "FedraSansPro-Light",
+        "color": 3368063,
+        "flags": 4,
+        "text": "SAN MARTÍN GRUPO DESARROLLADOR INMOBILIARIO S.A. DE C.V."
+      },
+      {
+        "bbox": [
+          463.0,
+          129.2,
+          752.0,
+          137.8
+        ],
+        "size": 7.0,
+        "font": "FedraSansPro-Light",
+        "color": 3368063,
+        "flags": 4,
+        "text": "Ave. Domingo Rubí 836 Sur, Colonia Guadalupe. Culiacán, Sin. C.P. 80220  Tel. (667) 716 5939"
+      },
+      {
+        "bbox": [
+          103.2,
+          513.8,
+          321.1,
+          522.4
+        ],
+        "size": 7.0,
+        "font": "FedraSansPro-Light",
+        "color": 3368063,
+        "flags": 4,
+        "text": "SAN MARTÍN GRUPO DESARROLLADOR INMOBILIARIO S.A. DE C.V."
+      },
+      {
+        "bbox": [
+          198.5,
+          583.4,
+          225.8,
+          592.1
+        ],
+        "size": 7.0,
+        "font": "FedraSansPro-Light",
+        "color": 3368063,
+        "flags": 4,
+        "text": "CLIENTE"
+      },
+      {
+        "bbox": [
+          580.5,
+          73.0,
+          785.7,
+          89.0
+        ],
+        "size": 14.00629997253418,
+        "font": "Recline-SemiBold",
+        "color": 13541750,
+        "flags": 20,
+        "text": "REGLAMENTO PARQUE FUNERAL"
+      },
+      {
+        "bbox": [
+          432.0,
+          183.3,
+          787.7,
+          582.5
+        ],
+        "size": 7.5,
+        "font": "FedraSansPro-Normal",
+        "color": 3368063,
+        "flags": 4,
+        "text": "Artículo 1.-  Las disposiciones contenidas en este reglamento son de observancia general para todos los usuarios de los Parques Funerales San Martín. La vigilancia de su cumplimiento queda a cargo de la administración de la empresa siendo los titulares de derechos de uso perpetuo de criptas, nichos para urnas, gavetas y osarios o fosas para inhumación, sus familiares y visitantes en general, quienes se someten libre y voluntariamente al presente documento.Artículo 2.- San Martín Grupo Desarrollador Inmobiliario S.A de C.V en su carácter de titular de la concesión para la explotación del Parque Funeral, será la encargada de la administración del Parque Funeral San Martín.Artículo 3.-  La concesionaria será la única encargada y responsable de prestar, por si o por terceras personas, bajo su responsabilidad, todos los servicios inherentes a la inhumación, exhumación y cremación de cadáveres humanos y al depósito de restos humanos en el Parque Funeral concesionado, así como los servicios complementarios de preparación del funeral, sepelio y de prestar los elementos o accesorios necesarios, de acuerdo al contrato celebrado con el titular de los derechos de uso o sus beneﬁcios y en todo caso con cargo y por cuenta de éstos.Artículo 4.-  La concesionaria, deberá prestar, además todos los servicios de mantenimiento del perímetro del Parque Funeral San Martín, incluyendo el cuidado, la conservación y aseo de fosas, criptas, osarios, nichos, ediﬁcios, caminos, jardines y parques, así como la vigilancia de todo el parque funeral bajo su responsabilidad y con cargo a las cuotas de mantenimiento que deben pagar los titulares de derechos de uso, de acuerdo al contrato correspondiente.Artículo 5.- La concesionaria se responsabiliza de todas las actividades y servicios a que se reﬁere el artículo anterior, que preste directamente o por mediación de la o las compañías y personas con lasque se contrate una o más de estas actividades y servicios.Artículo 6.-  La administración del Parque Funeral San Martín cuenta con los recursos humanos y materiales necesarios para la eﬁciente prestación de los servicios a que se halla obligada.Artículo 7.-    La administración del Parque Funeral San Martín deberá de mantener un mínimo de 10 fosas preparadas y disponibles para la inhumación de cadáveres humanos. En caso de fuerza mayor el H. Ayuntamiento o las autoridades de salud, podrán ordenar la preparación del número de fosas necesarias.Artículo 8.- La inhumación de cadáveres humanos y el depósito de restos humanos, deberán realizarse precisamente dentro del área o sección del Parque Funeral San Martín que se señale en el contrato respectivo. Cuando esto no sea posible por caso fortuito o fuerza mayor, la administración del Parque Funeral San Martín proporcionará al titular de derechos de uso o a sus beneﬁciarios, otro lugar de las mismas características, dentro de la misma área o sección.Artículo 9.-  La concesionaria  es la única autorizada para  fabricar placas y accesorios que, dentro de los 30 días siguientes al servicio y de acuerdo al contrato respectivo, dotará una placa de mármol a cada fosa, cripta, osario o nicho. Además, colocará en cada lugar un recipiente movible para la colocación de ﬂores. La placa y los ﬂoreros no deberán ser obstáculo para el cuidado y la conservación de los parques y jardines.Artículo 10.- Parque Funeral San Martín permanecerá abierto diariamente al público de las 8:00 a las 18:00 horas y dentro de este horario se iniciarán y terminarán todos los servicios programados, por lo que los visitantes deberán desalojar las instalaciones a más tardar a las 18:00 horas."
+      },
+      {
+        "bbox": [
+          432.9,
+          160.0,
+          678.6,
+          169.9
+        ],
+        "size": 8.0,
+        "font": "FedraSansPro-Light",
+        "color": 3368063,
+        "flags": 4,
+        "text": "N° Contrato:Fecha:"
+      }
+    ]
+  },
+  {
+    "page": 2,
+    "rect": [
+      820.3460083007812,
+      640.3460083007812
+    ],
+    "fonts": [
+      [
+        9,
+        "ttf",
+        "Type0",
+        "GMUCXV+FedraSansPro-Light",
+        "C2_0",
+        "Identity-H",
+        0
+      ],
+      [
+        7,
+        "ttf",
+        "TrueType",
+        "GMUCXV+FedraSansPro-Normal",
+        "TT0",
+        "WinAnsiEncoding",
+        0
+      ],
+      [
+        8,
+        "ttf",
+        "TrueType",
+        "GMUCXV+FedraSansPro-Light",
+        "TT1",
+        "WinAnsiEncoding",
+        0
+      ],
+      [
+        10,
+        "ttf",
+        "TrueType",
+        "GMUCXV+Recline-SemiBold",
+        "TT2",
+        "WinAnsiEncoding",
+        0
+      ]
+    ],
+    "images": [],
+    "blocks": [
+      {
+        "bbox": [
+          38.5,
+          113.7,
+          391.5,
+          582.8
+        ],
+        "size": 7.5,
+        "font": "FedraSansPro-Normal",
+        "color": 3368063,
+        "flags": 4,
+        "text": "Artículo 11.- Los vehículos de motor cuya entrada al Parque Funeral San Martín sea permitida por la administración, deberán circular a una velocidad máxima de 10 km/h. La empresa no se hace responsable por accidentes, daños y robos totales o parciales en los que dichos vehículos se involucren; así como tampoco por objetos de valor dejados en su interior.Artículo 12.- Los vehículos de motor únicamente deberán ser estacionados en los lugares destinados especíﬁcamente para ello y sus conductores deberán sujetarse estrictamente a los señalamientos interiores de tránsito; siendo además responsables por daños ocasionados a las instalaciones del parque funeral y por tanto deberán pagar por los desperfectos que llegaran a provocar.Artículo 13.- Se prohíbe la introducción y consumo de bebidas embriagantes y sustancias tóxicas o enervantes. La administración podrá impedir la entrada o estancia en Parque Funeral San Martín, a las personas que se presenten en estado inconveniente y/o remitir a las autoridades correspondientes, aún con el auxilio de la fuerza pública, a quienes sean sorprendidos en estado de ebriedad o bajo la inﬂuencia de cualquier droga o tóxico. También impedirá la entrada o estancia, dentro del Parque Funeral a quienes alteren el recogimiento natural del lugar, inciten o cometan cualquier acto de violencia, provoquen riñas o impidan en cualquier forma, la prestación de los servicios. En caso necesario se recurrirá al auxilio de la fuerza pública.Artículo 14.- Se prohíbe sin excepción la entrada al Parque Funeral San Martín de cualquier tipo de música, orquestas, bandas, grupos musicales, radiodifusores, altoparlantes, ampliﬁcadores o equipos de sonido dentro y fuera de los vehículos.Artículo 15.-  La administración deberá llevar los libros de registro de usuarios, titulares de derechos de uso perpetuo o temporal, beneﬁciarios o cesionarios con la información completa y actualizada, conforme a las normas establecidas por las autoridades competentes, así como los archivos y registros auxiliares que estime convenientes.Artículo 16.-  La concesionaria, queda obligada a cumplir estrictamente con las disposiciones consignadas en el presente documento de acuerdo al reglamento Municipal de Panteones correspondiente a la Legislación Sanitaria de la Federación y del Estado, así como los mandamientos y disposiciones que en lo futuro dicten las autoridades competentes en relación a la operación del Parque Funeral San Martín.Artículo 17.- Para proceder a la inhumación de cadáveres humanos, los titulares de los derechos de uso perpetuo o sus beneﬁciarios deberán: a) entregar a la administración, la documentación contractual y legal necesaria para acreditar el derecho de uso, b) justiﬁcar que se ha cumplido con los requisitos que exige la Legislación Sanitaria de la Federación y del Estado, así como el pago de los impuestos y derechos Municipales correspondientes, c) encontrarse al corriente en el cumplimiento de sus obligaciones derivadas del contrato respectivo y d) haber liquidado cualquier adeudo existente, por la prestación de servicios complementarios no incluídos en el contrato.Artículo 18.- Las criptas, nichos para urnas, gavetas, osarios o fosas para inhumación, se construirán de acuerdo con los planos de Parque Funeral San Martín y aprobados.Artículo 19.- La fosa destinada a la inhumación de un cadáver humano deberá estar preparada previamente a la hora ﬁjada para el sepelio, bajo la responsabilidad de la administración; a su vez, el interesado deberá cumplir también anticipadamente con las obligaciones que se ﬁjan en el Artículo 17.Artículo 20.- La exhumación de cadáveres humanos por orden judicial se hará de conformidad con las disposiciones legales respectivas y con los requisitos que señale a la autoridad correspondiente, para lo cual la administración de Parque Funeral San Martín designará al personal necesario.Artículo 21.- Las exhumaciones de cadáveres humanos a solicitud de la parte interesada, se harán en los términos marcados por la ley, mediante un escrito que el titular o titular sustituto del derecho de uso perpetuo de la fosa o cripta respectiva deberá presentar a la administración del Parque Funeral San Martín, quien podrá negarse justiﬁcadamente a realizar la exhumación del cadáver humano "
+      },
+      {
+        "bbox": [
+          427.0,
+          113.6,
+          780.0,
+          452.8
+        ],
+        "size": 7.5,
+        "font": "FedraSansPro-Light",
+        "color": 3368063,
+        "flags": 4,
+        "text": "correspondiente; ante lo cual, la controversia será resuelta por la autoridad municipal.Los gastos procedentes correrán por cuenta de la parte interesada.Artículo 22.- Cuando se trate de la cremación de cadáveres humanos, el interesado deberá cumplir con los requisitos a que se reﬁere el Artículo 17 y se realizará según los requisitos legales que exija la Legislación Sanitaria de la Federación y del Estado. Las cenizas, resultado de la cremación,se entregarán al interesado, quien ﬁrmará el recibo correspondiente y el depósito de las mismas en las criptas, nichos u osarios de Parque Funeral San Martín, se hará de acuerdo al contrato de compraventa de cesión de derechos de uso perpetuo pactado. El depósito de restos humanos en las criptas, gavetas, osarios o fosas para inhumación, así como de las urnas con cenizas en los nichos dispuestos para este efecto, ya sea que se trate de los que son llevados al Parque Funeral San Martín con esta ﬁnalidad o de los restos humanos y urnas con cenizas que hayan sido inhumados, exhumados o cremados, según el caso, en el propio Parque Funeral, se realizará de acuerdo a las disposiciones legales y sanitarias correspondientes.Artículo 23.- Los trabajos que se realicen en las inhumaciones, exhumaciones y cremaciones de cadáveres y en depósito o entrega de restos humanos, los realizará la administración de Parque Funeral San Martín, por conducto de las personas especialmente contratadas al efecto y su costo será cubierto por el titular de los derechos de uso perpetuo o temporal, beneﬁciarios o titular-sustituto, que los hayan solicitado, observándose en todo caso, las disposiciones legales y sanitarias aplicables.Artículo 24.- El depósito de restos humanos en Mausoleo deberá de hacerse después de haber sido embalsamado el cuerpo con las técnicas de conservación aprobadas por la secretaria de salud del Gobierno Federal.Artículo 25.- El cuidado, conservación, aseo, mantenimiento y vigilancia en general de Parque Funeral San Martín, estará bajo la responsabilidad de la administración, con cargo a las cuotas de mantenimiento que los usuarios paguen de acuerdo al contrato respectivo. Los titulares de los derechos de cualquier clase de servicios, podrán reclamar por escrito a la administración cualquier fallo o deﬁciencia que estimen contraria al debido cumplimiento de estas obligaciones. La administración resolverá lo procedente inmediatamente si ello fuera posible, en su caso dentro de un plazo prudente.Artículo 26.- Se hará una limpieza general en periodos semestrales antes de los días festivos 10 de mayo y 2 de noviembre, para lo cual los titulares de los derechos de uso perpetuo, titulares sustitutos, beneﬁciarios o cesionarios, deberán recoger todas las ﬂores a más tardar los días 28 de abril y 15 de octubre de cada año. Al tercer día posterior a estas fechas, se podrán colocar ﬂores nuevas.Si después de los días señalados, permanecen ﬂores en las criptas, serán retiradas y desechadas por el personal de mantenimiento de la administración al realizar la limpieza general."
+      },
+      {
+        "bbox": [
+          173.8,
+          67.0,
+          767.4,
+          83.0
+        ],
+        "size": 14.00629997253418,
+        "font": "Recline-SemiBold",
+        "color": 13541750,
+        "flags": 20,
+        "text": "REGLAMENTO PARQUE FUNERALREGLAMENTO PARQUE FUNERAL"
+      }
+    ]
+  }
+]

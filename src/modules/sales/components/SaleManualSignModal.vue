@@ -6,9 +6,12 @@ import { pdfBlobViewUrl } from '../utils/pdf-page-renderer';
 import {
   buildAuthorizationLetterBundle,
 } from '../utils/authorization-letter-pdf';
+import { buildConvenioLetterBundle } from '../utils/convenio-letter-pdf';
+import { buildExclusionesLetterBundle } from '../utils/exclusiones-letter-pdf';
 import { buildInvoiceLetterBundle } from '../utils/invoice-letter-pdf';
 import { buildNoInvoiceConsentBundle } from '../utils/no-invoice-consent-pdf';
 import { buildParkRegulationBundle } from '../utils/park-regulation-pdf';
+import { buildParkRegulationBookletBundle } from '../utils/park-regulation-booklet-pdf';
 import { buildSalePreviewBundle } from '../utils/sale-pdf';
 import {
   listSignDocuments,
@@ -98,12 +101,18 @@ async function buildDocBundle(kind: SignDocumentKind) {
   switch (kind) {
     case 'cartaFactura':
       return buildInvoiceLetterBundle(props.form, opts);
+    case 'cartaExclusiones':
+      return buildExclusionesLetterBundle(props.form, opts);
     case 'cartaNoFactura':
       return buildNoInvoiceConsentBundle(props.form, opts);
     case 'reglamentoParque':
       return buildParkRegulationBundle(props.form, opts);
+    case 'reglamentoParqueFolleto':
+      return buildParkRegulationBookletBundle(props.form, opts);
     case 'cartaAutorizacion':
       return buildAuthorizationLetterBundle(props.form, opts);
+    case 'cartaNomina':
+      return buildConvenioLetterBundle(props.form, opts);
     default:
       return buildSalePreviewBundle(props.form, opts);
   }

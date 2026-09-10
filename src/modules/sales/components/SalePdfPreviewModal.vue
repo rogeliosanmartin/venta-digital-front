@@ -7,6 +7,14 @@ import {
   isDraftAuthorizationLetter,
 } from '../utils/authorization-letter-pdf';
 import {
+  buildConvenioLetterBundle,
+  isDraftConvenioLetter,
+} from '../utils/convenio-letter-pdf';
+import {
+  buildExclusionesLetterBundle,
+  isDraftExclusionesLetter,
+} from '../utils/exclusiones-letter-pdf';
+import {
   buildInvoiceLetterBundle,
   isDraftInvoiceLetter,
 } from '../utils/invoice-letter-pdf';
@@ -18,6 +26,7 @@ import {
   buildParkRegulationBundle,
   isDraftParkRegulation,
 } from '../utils/park-regulation-pdf';
+import { buildParkRegulationBookletBundle } from '../utils/park-regulation-booklet-pdf';
 import { buildSalePreviewBundle, isDraftCaratula } from '../utils/sale-pdf';
 import { buildCardSidesBundle, buildIneSidesBundle } from '../utils/card-sides-pdf';
 import type { SaleFormData } from '../types/sale-form';
@@ -32,8 +41,11 @@ const props = withDefaults(
       | 'caratula'
       | 'cartaFactura'
       | 'cartaNoFactura'
+      | 'cartaExclusiones'
       | 'reglamentoParque'
+      | 'reglamentoParqueFolleto'
       | 'cartaAutorizacion'
+      | 'cartaNomina'
       | 'tarjeta'
       | 'ine';
   }>(),
@@ -54,15 +66,24 @@ const useEmbedFallback = computed(
 
 const isCarta = computed(() => props.kind === 'cartaFactura');
 const isNoFactura = computed(() => props.kind === 'cartaNoFactura');
+const isExclusiones = computed(() => props.kind === 'cartaExclusiones');
 const isReglamento = computed(() => props.kind === 'reglamentoParque');
+const isReglamentoFolleto = computed(
+  () => props.kind === 'reglamentoParqueFolleto',
+);
 const isAuth = computed(() => props.kind === 'cartaAutorizacion');
+const isNomina = computed(() => props.kind === 'cartaNomina');
 const isTarjeta = computed(() => props.kind === 'tarjeta');
 const isIne = computed(() => props.kind === 'ine');
 const isDraft = computed(() => {
   if (isTarjeta.value || isIne.value) return false;
   const opts = { saleId: props.saleId, status: props.status };
   if (isAuth.value) return isDraftAuthorizationLetter(props.form, opts);
-  if (isReglamento.value) return isDraftParkRegulation(props.form, opts);
+  if (isNomina.value) return isDraftConvenioLetter(props.form, opts);
+  if (isReglamento.value || isReglamentoFolleto.value) {
+    return isDraftParkRegulation(props.form, opts);
+  }
+  if (isExclusiones.value) return isDraftExclusionesLetter(props.form, opts);
   if (isNoFactura.value) return isDraftNoInvoiceConsent(props.form, opts);
   if (isCarta.value) return isDraftInvoiceLetter(props.form, opts);
   return isDraftCaratula(props.form, opts);
@@ -75,10 +96,27 @@ const modalTitle = computed(() => {
       ? 'Carta de autorización (borrador)'
       : 'Carta de autorización';
   }
+  if (isNomina.value) {
+    const empresa = (props.form.pago.empresaNomina || '').trim();
+    const title = empresa
+      ? `Carta de consentimiento · ${empresa}`
+      : 'Carta de consentimiento (nómina)';
+    return isDraft.value ? `${title} (borrador)` : title;
+  }
+  if (isReglamentoFolleto.value) {
+    return isDraft.value
+      ? 'Reglamento de parque (artículos, borrador)'
+      : 'Reglamento de parque (artículos)';
+  }
   if (isReglamento.value) {
     return isDraft.value
       ? 'Reglamento de parque (borrador)'
       : 'Reglamento de parque';
+  }
+  if (isExclusiones.value) {
+    return isDraft.value
+      ? 'Carta de aceptación de exclusiones (borrador)'
+      : 'Carta de aceptación de exclusiones';
   }
   if (isNoFactura.value) {
     return isDraft.value
@@ -102,10 +140,25 @@ const downloadName = computed(() => {
       ? 'carta-autorizacion-borrador.pdf'
       : 'carta-autorizacion.pdf';
   }
+  if (isNomina.value) {
+    return isDraft.value
+      ? 'carta-consentimiento-nomina-borrador.pdf'
+      : 'carta-consentimiento-nomina.pdf';
+  }
+  if (isReglamentoFolleto.value) {
+    return isDraft.value
+      ? 'reglamento-parque-articulos-borrador.pdf'
+      : 'reglamento-parque-articulos.pdf';
+  }
   if (isReglamento.value) {
     return isDraft.value
       ? 'reglamento-parque-borrador.pdf'
       : 'reglamento-parque.pdf';
+  }
+  if (isExclusiones.value) {
+    return isDraft.value
+      ? 'carta-aceptacion-exclusiones-borrador.pdf'
+      : 'carta-aceptacion-exclusiones.pdf';
   }
   if (isNoFactura.value) {
     return isDraft.value
@@ -122,7 +175,8 @@ const downloadName = computed(() => {
 const generatingLabel = computed(() => {
   if (isTarjeta.value) return 'Armando PDF de la tarjeta…';
   if (isIne.value) return 'Armando PDF de la INE…';
-  if (isAuth.value || isCarta.value || isNoFactura.value || isReglamento.value) {
+  if (isReglamentoFolleto.value) return 'Generando folleto…';
+  if (isAuth.value || isNomina.value || isCarta.value || isNoFactura.value || isReglamento.value || isExclusiones.value) {
     return 'Generando carta…';
   }
   return 'Generando carátula…';
@@ -168,13 +222,19 @@ async function render() {
           )
         : isAuth.value
         ? await buildAuthorizationLetterBundle(props.form, opts)
+        : isNomina.value
+          ? await buildConvenioLetterBundle(props.form, opts)
+        : isReglamentoFolleto.value
+          ? await buildParkRegulationBookletBundle(props.form, opts)
         : isReglamento.value
           ? await buildParkRegulationBundle(props.form, opts)
-          : isNoFactura.value
-            ? await buildNoInvoiceConsentBundle(props.form, opts)
-            : isCarta.value
-              ? await buildInvoiceLetterBundle(props.form, opts)
-              : await buildSalePreviewBundle(props.form, opts);
+          : isExclusiones.value
+            ? await buildExclusionesLetterBundle(props.form, opts)
+            : isNoFactura.value
+              ? await buildNoInvoiceConsentBundle(props.form, opts)
+              : isCarta.value
+                ? await buildInvoiceLetterBundle(props.form, opts)
+                : await buildSalePreviewBundle(props.form, opts);
     downloadUrl.value = URL.createObjectURL(blob);
     if (pages.length) {
       pageImages.value = pages;
@@ -188,9 +248,15 @@ async function render() {
         ? 'No se pudo armar el PDF con ambos lados de la INE.'
         : isAuth.value
         ? 'No se pudo generar la carta de autorización.'
+        : isNomina.value
+          ? 'No se pudo generar la carta de consentimiento de nómina.'
+        : isReglamentoFolleto.value
+          ? 'No se pudo generar el folleto del reglamento de parque.'
         : isReglamento.value
           ? 'No se pudo generar el reglamento de parque.'
-          : isNoFactura.value
+          : isExclusiones.value
+            ? 'No se pudo generar la carta de aceptación de exclusiones.'
+            : isNoFactura.value
             ? 'No se pudo generar el consentimiento de no factura.'
             : isCarta.value
               ? 'No se pudo generar la carta de requerimiento de factura.'
@@ -201,7 +267,13 @@ async function render() {
 }
 
 watch(
-  () => [props.open, props.kind] as const,
+  () =>
+    [
+      props.open,
+      props.kind,
+      props.form.pago.empresaNominaId,
+      props.form.pago.empresaNomina,
+    ] as const,
   ([open]) => {
     if (open) void render();
   },
@@ -225,12 +297,17 @@ onUnmounted(() => {
         {{ generatingLabel }}
       </div>
       <p v-else-if="error" class="error-text">{{ error }}</p>
-      <div v-else-if="pageImages.length" class="preview__pages">
+      <div
+        v-else-if="pageImages.length"
+        class="preview__pages"
+        :class="{ 'preview__pages--booklet': isReglamentoFolleto }"
+      >
         <img
           v-for="(src, i) in pageImages"
           :key="i"
           :src="src"
           class="preview__page"
+          :class="{ 'preview__page--booklet': isReglamentoFolleto }"
           :alt="`Hoja ${i + 1}`"
         />
       </div>
@@ -295,6 +372,15 @@ onUnmounted(() => {
   background: #fff;
   border-radius: 2px;
   box-shadow: 0 2px 12px rgba(28, 42, 51, 0.14);
+}
+
+.preview__pages--booklet {
+  gap: 1rem;
+}
+
+.preview__page--booklet {
+  width: 100%;
+  max-width: none;
 }
 
 .preview__embed {

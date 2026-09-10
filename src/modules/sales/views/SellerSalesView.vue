@@ -29,13 +29,17 @@ import {
 } from '../utils/attachment-preview';
 import { buildPaymentTicketPdf } from '../utils/payment-ticket-pdf';
 import { buildAuthorizationLetterPdf } from '../utils/authorization-letter-pdf';
+import { isUasConvenio } from '../utils/convenio-letter';
+import { buildConvenioLetterPdf } from '../utils/convenio-letter-pdf';
 import {
   buildCardSidesAttachment,
   buildIneSidesAttachment,
 } from '../utils/card-sides-pdf';
+import { buildExclusionesLetterPdf } from '../utils/exclusiones-letter-pdf';
 import { buildInvoiceLetterPdf } from '../utils/invoice-letter-pdf';
 import { buildNoInvoiceConsentPdf } from '../utils/no-invoice-consent-pdf';
 import { buildParkRegulationPdf } from '../utils/park-regulation-pdf';
+import { buildParkRegulationBookletPdf } from '../utils/park-regulation-booklet-pdf';
 import { buildSalePreviewPdf } from '../utils/sale-pdf';
 import { normalizeTipoCobranza } from '../utils/payment-method';
 import {
@@ -611,10 +615,19 @@ async function confirmSign(dataUrl: string) {
     let cartaNoFacturaPdf:
       | { name: string; mime: string; dataBase64: string }
       | undefined;
+    let cartaExclusionesPdf:
+      | { name: string; mime: string; dataBase64: string }
+      | undefined;
     let reglamentoParquePdf:
       | { name: string; mime: string; dataBase64: string }
       | undefined;
+    let reglamentoParqueFolletoPdf:
+      | { name: string; mime: string; dataBase64: string }
+      | undefined;
     let cartaAutorizacionPdf:
+      | { name: string; mime: string; dataBase64: string }
+      | undefined;
+    let cartaNominaPdf:
       | { name: string; mime: string; dataBase64: string }
       | undefined;
     let tarjetaPdf:
@@ -666,6 +679,19 @@ async function confirmSign(dataUrl: string) {
         console.warn('No se pudo generar consentimiento de no factura', pdfErr);
       }
     }
+    try {
+      const letter = await buildExclusionesLetterPdf(formForPdf, {
+        saleId: actionSaleId.value,
+        status: 'COMPLETED',
+      });
+      cartaExclusionesPdf = {
+        name: `carta-aceptacion-exclusiones_venta-${actionSaleId.value}.pdf`,
+        mime: 'application/pdf',
+        dataBase64: await blobToBase64(letter),
+      };
+    } catch (pdfErr) {
+      console.warn('No se pudo generar carta de exclusiones', pdfErr);
+    }
     if (formForPdf.ubicacionPlan.planKind === 'PARQUE') {
       try {
         const letter = await buildParkRegulationPdf(formForPdf, {
@@ -680,7 +706,39 @@ async function confirmSign(dataUrl: string) {
       } catch (pdfErr) {
         console.warn('No se pudo generar reglamento de parque', pdfErr);
       }
+      try {
+        const booklet = await buildParkRegulationBookletPdf(formForPdf, {
+          saleId: actionSaleId.value,
+          status: 'COMPLETED',
+        });
+        reglamentoParqueFolletoPdf = {
+          name: `reglamento-parque-articulos_venta-${actionSaleId.value}.pdf`,
+          mime: 'application/pdf',
+          dataBase64: await blobToBase64(booklet),
+        };
+      } catch (pdfErr) {
+        console.warn('No se pudo generar folleto del reglamento', pdfErr);
+      }
     }
+    if (
+      normalizeTipoCobranza(formForPdf.contacto.tipoCobranza) === 'NOMINA' &&
+      formForPdf.pago.empresaNominaId
+    ) {
+      try {
+        const nominaLetter = await buildConvenioLetterPdf(formForPdf, {
+          saleId: actionSaleId.value,
+          status: 'COMPLETED',
+        });
+        cartaNominaPdf = {
+          name: `carta-consentimiento-nomina_venta-${actionSaleId.value}.pdf`,
+          mime: 'application/pdf',
+          dataBase64: await blobToBase64(nominaLetter),
+        };
+      } catch (pdfErr) {
+        console.warn('No se pudo generar carta de nómina para Drive', pdfErr);
+      }
+    }
+
     if (normalizeTipoCobranza(formForPdf.contacto.tipoCobranza) === 'DOMICILIADO') {
       try {
         const authLetter = await buildAuthorizationLetterPdf(formForPdf, {
@@ -695,6 +753,12 @@ async function confirmSign(dataUrl: string) {
       } catch (pdfErr) {
         console.warn('No se pudo generar carta de autorización para Drive', pdfErr);
       }
+    }
+
+    if (
+      normalizeTipoCobranza(formForPdf.contacto.tipoCobranza) === 'DOMICILIADO' ||
+      isUasConvenio(formForPdf)
+    ) {
       const frente = formForPdf.documentos.tarjetaFrente;
       const reverso = formForPdf.documentos.tarjetaReverso;
       if (frente && reverso) {
@@ -740,8 +804,11 @@ async function confirmSign(dataUrl: string) {
         ...(caratulaPdf ? { caratulaPdf } : {}),
         ...(cartaFacturaPdf ? { cartaFacturaPdf } : {}),
         ...(cartaNoFacturaPdf ? { cartaNoFacturaPdf } : {}),
+        ...(cartaExclusionesPdf ? { cartaExclusionesPdf } : {}),
         ...(reglamentoParquePdf ? { reglamentoParquePdf } : {}),
+        ...(reglamentoParqueFolletoPdf ? { reglamentoParqueFolletoPdf } : {}),
         ...(cartaAutorizacionPdf ? { cartaAutorizacionPdf } : {}),
+        ...(cartaNominaPdf ? { cartaNominaPdf } : {}),
         ...(tarjetaPdf ? { tarjetaPdf } : {}),
         ...(inePdf ? { inePdf } : {}),
       },

@@ -15,18 +15,23 @@ export type ParkLocationSelection = {
   parkName: string;
   sectionId: number;
   sectionName: string;
-  quadrantId: number;
+  quadrantId: number | null;
   quadrantName: string;
-  spaceId: number;
+  spaceId: number | null;
   spaceName: string;
   spaceCode?: string | null;
 };
 
 type Step = 'parque' | 'seccion' | 'cuadrante' | 'espacio';
 
-const STEPS: Step[] = ['parque', 'seccion', 'cuadrante', 'espacio'];
+const ALL_STEPS: Step[] = ['parque', 'seccion', 'cuadrante', 'espacio'];
+const PARK_SECTION_STEPS: Step[] = ['parque', 'seccion'];
 
-const props = defineProps<{ open: boolean }>();
+const props = defineProps<{
+  open: boolean;
+  /** Sin preasignación: solo parque y sección. */
+  stopAt?: 'seccion' | 'espacio';
+}>();
 
 const emit = defineEmits<{
   close: [];
@@ -43,7 +48,12 @@ const selected = ref<Partial<ParkLocationSelection>>({});
 
 let timer: ReturnType<typeof setTimeout> | null = null;
 
-const stepIndex = computed(() => STEPS.indexOf(step.value));
+const flowSteps = computed(() =>
+  props.stopAt === 'seccion' ? PARK_SECTION_STEPS : ALL_STEPS,
+);
+
+const stepIndex = computed(() => flowSteps.value.indexOf(step.value));
+const totalSteps = computed(() => flowSteps.value.length);
 const stepTitle = computed(() => {
   const titles: Record<Step, string> = {
     parque: 'Parque',
@@ -141,9 +151,29 @@ function onInput() {
   }, 300);
 }
 
+function emitParkSection(extra?: {
+  quadrantId?: number | null;
+  quadrantName?: string;
+  spaceId?: number | null;
+  spaceName?: string;
+  spaceCode?: string | null;
+}) {
+  emit('select', {
+    parkId: selected.value.parkId!,
+    parkName: selected.value.parkName!,
+    sectionId: selected.value.sectionId!,
+    sectionName: selected.value.sectionName!,
+    quadrantId: extra?.quadrantId ?? null,
+    quadrantName: extra?.quadrantName ?? '',
+    spaceId: extra?.spaceId ?? null,
+    spaceName: extra?.spaceName ?? '',
+    spaceCode: extra?.spaceCode ?? null,
+  });
+}
+
 function goBack() {
   if (stepIndex.value <= 0) return;
-  step.value = STEPS[stepIndex.value - 1];
+  step.value = flowSteps.value[stepIndex.value - 1];
   q.value = '';
   results.value = [];
   error.value = null;
@@ -163,6 +193,10 @@ function pick(item: UbicacionOption) {
       sectionId: item.id,
       sectionName: item.name,
     };
+    if (props.stopAt === 'seccion') {
+      emitParkSection();
+      return;
+    }
     step.value = 'cuadrante';
   } else if (step.value === 'cuadrante') {
     selected.value = {
@@ -172,13 +206,9 @@ function pick(item: UbicacionOption) {
     };
     step.value = 'espacio';
   } else {
-    emit('select', {
-      parkId: selected.value.parkId!,
-      parkName: selected.value.parkName!,
-      sectionId: selected.value.sectionId!,
-      sectionName: selected.value.sectionName!,
-      quadrantId: selected.value.quadrantId!,
-      quadrantName: selected.value.quadrantName!,
+    emitParkSection({
+      quadrantId: selected.value.quadrantId ?? null,
+      quadrantName: selected.value.quadrantName ?? '',
       spaceId: item.id,
       spaceName: item.name,
       spaceCode: item.code ?? null,
@@ -204,7 +234,12 @@ watch(
 </script>
 
 <template>
-  <VdModal :open="open" title="Buscar ubicación" wide @close="emit('close')">
+  <VdModal
+    :open="open"
+    :title="stopAt === 'seccion' ? 'Buscar parque y sección' : 'Buscar ubicación'"
+    wide
+    @close="emit('close')"
+  >
     <div class="loc-search">
       <div class="loc-search__head">
         <button
@@ -216,7 +251,8 @@ watch(
           ← Atrás
         </button>
         <p class="loc-search__step">
-          Paso {{ stepIndex + 1 }} de 4 · <strong>{{ stepTitle }}</strong>
+          Paso {{ stepIndex + 1 }} de {{ totalSteps }} ·
+          <strong>{{ stepTitle }}</strong>
         </p>
         <p v-if="breadcrumb" class="loc-search__crumb">{{ breadcrumb }}</p>
       </div>

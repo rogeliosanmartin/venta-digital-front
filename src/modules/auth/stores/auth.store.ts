@@ -39,6 +39,27 @@ export const useAuthStore = defineStore('auth', () => {
     expiresAt.value = data.expiresAt;
   }
 
+  async function loginSellerDev(cellphone: string) {
+    loading.value = true;
+    error.value = null;
+    try {
+      const { data } = await http.post<AuthTokensResponse>(
+        '/auth/vendedor/login-dev',
+        { cellphone },
+      );
+      persistSession(data);
+      if (data.user.type === 'VENDEDOR') {
+        void prefetchSellerSession(data.user.id).catch(() => undefined);
+      }
+      return data;
+    } catch (e: unknown) {
+      error.value = extractApiError(e, 'No se pudo iniciar sesión');
+      throw e;
+    } finally {
+      loading.value = false;
+    }
+  }
+
   async function requestSellerPin(cellphone: string) {
     loading.value = true;
     error.value = null;
@@ -145,6 +166,7 @@ export const useAuthStore = defineStore('auth', () => {
     userType,
     permissions,
     requestSellerPin,
+    loginSellerDev,
     verifySellerPin,
     loginMonitor,
     logout,
