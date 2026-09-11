@@ -18,7 +18,9 @@ RUN npm run build
 
 FROM nginx:stable-alpine AS runtime
 
-COPY nginx.conf /etc/nginx/conf.d/default.conf
+ENV API_UPSTREAM=http://127.0.0.1:3022
+
+COPY nginx.conf /etc/nginx/templates/default.conf.template
 COPY --from=build /app/dist /usr/share/nginx/html
 
 EXPOSE 80

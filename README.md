@@ -13,16 +13,18 @@ npm run dev
 
 1. Crear el recurso desde este repositorio y seleccionar **Dockerfile** como tipo de build.
 2. Usar el puerto **80**.
-3. Configurar `VITE_API_URL` como variable de build con la URL pública del API, incluyendo `/api` (por ejemplo, `https://api.example.com/api`).
+3. Configurar `API_UPSTREAM` como variable de runtime con la URL interna del backend, sin el sufijo `/api` (por ejemplo, `http://UUID-BACKEND:3000`).
 4. Desplegar el recurso.
 
-`VITE_API_URL` se integra en los archivos estáticos durante el build de Vite. Cambiarla requiere volver a construir y desplegar la imagen.
+El navegador consulta `/api` en el mismo dominio del frontend y Nginx reenvía
+esas solicitudes a `API_UPSTREAM`. Esto evita exponer la red interna y no
+requiere CORS entre frontend y backend.
 
 Para construir localmente:
 
 ```bash
-docker build \
-  --build-arg VITE_API_URL=https://api.example.com/api \
-  -t venta-digital-front .
-docker run --rm -p 8080:80 venta-digital-front
+docker build -t venta-digital-front .
+docker run --rm -p 8080:80 \
+  -e API_UPSTREAM=http://host.docker.internal:3022 \
+  venta-digital-front
 ```
