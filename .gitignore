@@ -16,7 +16,7 @@ dist-ssr
 !.env.example
 
 # Documentación local (actividades, no versionar)
-documentacion/
+documentacion
 
 # Editor directories and files
 .vscode/*
